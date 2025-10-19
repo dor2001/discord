@@ -2,19 +2,12 @@
   "name": "discord-music-bot-dashboard",
   "version": "1.0.1",
   "type": "module",
-  "main": "src/bot.js",
+  "private": true,
   "scripts": {
     "start": "node src/bot.js"
   },
   "dependencies": {
-    "@discordjs/voice": "^0.16.1",
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
     "discord.js": "^14.15.3",
-    "express": "^4.19.2",
-    "node-fetch": "^3.3.2",
-    "socket.io": "^4.7.5",
-    "yt-search": "^2.10.4",
-    "opusscript": "^0.0.8"
+    "express": "^4.19.2"
   }
 }
