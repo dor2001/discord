@@ -16,6 +16,8 @@ export class MusicBot {
   public client: Client
   public guilds: Collection<string, GuildData>
   private isReady = false
+  private readyPromise: Promise<void>
+  private readyResolve?: () => void
 
   constructor() {
     this.client = new Client({
@@ -23,15 +25,21 @@ export class MusicBot {
     })
 
     this.guilds = new Collection()
+
+    this.readyPromise = new Promise((resolve) => {
+      this.readyResolve = resolve
+    })
+
     this.setupEventHandlers()
   }
 
   private setupEventHandlers() {
-    this.client.on("clientReady", () => {
+    this.client.on("ready", () => {
       console.log("[v0] Bot is ready! Logged in as:", this.client.user?.tag)
       this.isReady = true
 
       this.client.guilds.cache.forEach((guild) => {
+        console.log("[v0] Found guild:", guild.name, "ID:", guild.id)
         this.guilds.set(guild.id, {
           guildId: guild.id,
           guildName: guild.name,
@@ -41,6 +49,11 @@ export class MusicBot {
           connection: null,
         })
       })
+
+      console.log("[v0] Total guilds loaded:", this.guilds.size)
+      if (this.readyResolve) {
+        this.readyResolve()
+      }
     })
 
     this.client.on("guildCreate", (guild) => {
@@ -82,7 +95,9 @@ export class MusicBot {
   public async start() {
     try {
       await this.client.login(config.discordToken)
-      console.log("[v0] Bot login successful")
+      console.log("[v0] Bot login successful, waiting for ready event...")
+      await this.readyPromise
+      console.log("[v0] Bot is fully ready with", this.guilds.size, "guilds")
     } catch (error) {
       console.error("[v0] Failed to start bot:", error)
       throw error
@@ -112,17 +127,25 @@ export class MusicBot {
   }
 }
 
-let botInstance: MusicBot | null = null
+declare global {
+  var musicBotInstance: MusicBot | undefined
+}
 
 export function getBotInstance(): MusicBot {
-  if (!botInstance) {
-    botInstance = new MusicBot()
+  if (!global.musicBotInstance) {
+    console.log("[v0] Creating new bot instance")
+    global.musicBotInstance = new MusicBot()
   }
-  return botInstance
+  return global.musicBotInstance
 }
 
 export async function startBot() {
   const bot = getBotInstance()
-  await bot.start()
+  if (!bot.client.isReady()) {
+    console.log("[v0] Starting bot...")
+    await bot.start()
+  } else {
+    console.log("[v0] Bot already started")
+  }
   return bot
 }

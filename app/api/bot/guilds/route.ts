@@ -7,7 +7,9 @@ export async function GET() {
     await requireAuth()
 
     const bot = getBotInstance()
+    console.log("[v0] API: Getting guilds, bot ready:", bot.client.isReady(), "guilds count:", bot.guilds.size)
     const guilds = bot.getGuilds()
+    console.log("[v0] API: Returning guilds:", guilds)
 
     return NextResponse.json({ guilds })
   } catch (error) {
