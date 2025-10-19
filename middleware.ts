@@ -5,9 +5,10 @@ export function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get("music_bot_session")
   const isLoginPage = request.nextUrl.pathname === "/login"
   const isApiAuth = request.nextUrl.pathname.startsWith("/api/auth")
+  const isHealthCheck = request.nextUrl.pathname === "/api/bot/health"
 
-  // Allow auth API routes
-  if (isApiAuth) {
+  // Allow auth API routes and health check
+  if (isApiAuth || isHealthCheck) {
     return NextResponse.next()
   }
 
