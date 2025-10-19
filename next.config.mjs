@@ -1,9 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
-  experimental: {
-    serverComponentsExternalPackages: ["discord.js", "@discordjs/voice"],
-  },
+  serverExternalPackages: ["discord.js", "@discordjs/voice"],
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals.push({
