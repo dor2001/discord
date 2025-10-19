@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "Node",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
     "target": "ES2022",
     "outDir": "./dist/bot",
     "rootDir": ".",
