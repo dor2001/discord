@@ -22,12 +22,12 @@ export function startWeb(client, music, port){
   app.use(express.static(path.join(__dirname, '../../public')));
 
   // API
-  app.get('/api/guilds', (req,res)=>{
-    res.json(music.listGuilds());
+  app.get('/api/guilds', async (req,res)=>{
+    try { const list = await music.listGuilds(); res.json(list); } catch(e) { res.status(500).json({error:e.message}); }
   });
 
-  app.get('/api/guilds/:id/channels', (req,res)=>{
-    res.json(music.listChannels(req.params.id));
+  app.get('/api/guilds/:id/channels', async (req,res)=>{
+    try { const list = await music.listChannels(req.params.id); res.json(list); } catch(e) { res.status(500).json({error:e.message}); }
   });
 
   app.post('/api/:guildId/join', async (req,res)=>{

@@ -36,12 +36,14 @@ async function registerCommands(){
   console.log('Slash commands registered.');
 }
 
-client.once('ready', async () => {
+const onReady = async () => {
   console.log(`Logged in as ${client.user.tag}`);
   await registerCommands();
   // Start web dashboard on same process
   startWeb(client, music, CONFIG.port);
-});
+};
+client.once('ready', onReady);
+client.once('clientReady', onReady);
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;

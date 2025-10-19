@@ -27,17 +27,19 @@ export class MusicManager {
   }
 
   // Web helpers
-  listGuilds(){
-    return this.client.guilds.cache.map(g => ({
+  async listGuilds(){
+    try { await this.client.guilds.fetch(); } catch(e) { console.warn('guilds.fetch failed', e); }
+    return Array.from(this.client.guilds.cache.values()).map(g => ({
       id: g.id,
       name: g.name,
       icon: g.iconURL({ size: 64 })
     }));
   }
 
-  listChannels(guildId){
+  async listChannels(guildId){
     const g = this.client.guilds.cache.get(guildId);
     if (!g) return { voice: [], text: [] };
+    try { await g.channels.fetch(); } catch(e) { console.warn('channels.fetch failed', e); }
     const voice = [];
     const text = [];
     g.channels.cache.forEach(ch => {
@@ -262,7 +264,8 @@ class GuildPlayer {
         title: this.current.info?.title || this.current.query,
         url: this.current.info?.url || this.current.query,
         durationInSec: this.getDuration(),
-        positionInSec: this.getPosition()
+        positionInSec: this.getPosition(),
+        thumbnail: (this.current.info?.thumbnails && this.current.info.thumbnails[0]?.url) || null
       } : null,
       playerStatus: this.player.state.status
     };
