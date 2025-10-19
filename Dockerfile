@@ -4,7 +4,7 @@ FROM node:20-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NODE_ENV=production
 
-# מערכת בסיסית + כלים לקומפילציה של opus
+# מערכת בסיסית + כלי קומפילציה (ל־@discordjs/opus)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     curl ca-certificates xz-utils make g++ \
@@ -30,25 +30,25 @@ RUN apt-get update \
 WORKDIR /app
 COPY package*.json ./
 
-# npm install (לא ci) למניעת שגיאת lockfile
+# npm install (לא ci) כדי לא להיכשל כשאין package-lock.json
 RUN npm install --omit=dev
 
 # העתקת קבצי האפליקציה
 COPY . .
 
-# ניקוי כלים כבדים כדי לחסוך RAM/Storage
+# ניקוי כלי build כדי לצמצם משקל
 RUN apt-get purge -y make g++ && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* /tmp/*
 
-# ===== Volume =====
+# נתונים מתמשכים (settings/history/cookies)
 VOLUME ["/app/data"]
 
-# ===== ENV & Ports =====
+# קונפיג ברירת מחדל
 ENV PANEL_PORT=3000
 EXPOSE 3000
 
-# ===== Healthcheck =====
+# Healthcheck (אופציונלי)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PANEL_PORT||3000),res=>{if(res.statusCode<500)process.exit(0);process.exit(1)}).on('error',()=>process.exit(1))"
 
-# ===== Run =====
+# Run
 CMD ["npm","start"]
