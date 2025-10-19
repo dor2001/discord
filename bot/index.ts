@@ -27,7 +27,7 @@ export class MusicBot {
   }
 
   private setupEventHandlers() {
-    this.client.on("ready", () => {
+    this.client.on("clientReady", () => {
       console.log("[v0] Bot is ready! Logged in as:", this.client.user?.tag)
       this.isReady = true
 
