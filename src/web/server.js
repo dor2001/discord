@@ -7,13 +7,13 @@ export function createWebServer({ client }) {
   app.use(cors({ origin: true }));
   app.use(express.json());
 
-  // בריאות לקונטיינר/קוליפיי
-  app.get('/healthz', (req, res) => {
-    const up = client?.user ? 'ok' : 'starting';
-    res.status(up === 'ok' ? 200 : 503).json({ status: up });
+  // Health for Coolify/docker
+  app.get('/healthz', (_req, res) => {
+    const ready = Boolean(client?.user);
+    res.status(ready ? 200 : 503).json({ status: ready ? 'ok' : 'starting' });
   });
 
-  // רשימת השרתים שהבוט מחובר אליהם
+  // List guilds the bot is in
   app.get('/api/guilds', (_req, res) => {
     try {
       const guilds = client.guilds.cache.map(g => ({

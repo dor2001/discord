@@ -16,7 +16,6 @@ const {
 
 const PORT = Number(PORT_ENV || PANEL_PORT || 3000);
 
-// חשוב: intent של Guilds כדי למלא cache של שרתים
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -25,28 +24,24 @@ const client = new Client({
   partials: [Partials.Guild, Partials.Channel, Partials.User]
 });
 
-// רישום פקודות (אם יש)
 async function registerSlashCommands() {
   console.log('Slash commands registered.');
 }
 
-let server; // נשמור רפרנס כדי לא לפתוח פעמיים
+let server;
 function startWebIfNeeded() {
-  if (server && server.listening) return; // כבר פתוח
+  if (server && server.listening) return;
   const app = createWebServer({ client });
   try {
     server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Web UI on http://localhost:${PORT}`);
     });
-    // כיבוי נקי
     const shutdown = () => server && server.close(() => process.exit(0));
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
   } catch (err) {
-    if (err && err.code === 'EADDRINUSE') {
-      console.error(
-        `Port ${PORT} is already in use inside the container. Skipping second listen.`
-      );
+    if (err?.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use; skipping second listen.`);
     } else {
       console.error('Failed to start web server:', err);
       process.exit(1);
@@ -54,7 +49,6 @@ function startWebIfNeeded() {
   }
 }
 
-// שימוש באירוע התקין ל-v14+:
 client.once(Events.ClientReady, async () => {
   console.log(`Logged in as ${client.user.tag}`);
   await registerSlashCommands();
