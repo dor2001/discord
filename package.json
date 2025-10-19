@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "concurrently \"next dev\" \"tsx watch bot/start.ts\"",
+    "dev": "tsx watch server.js",
     "lint": "next lint",
-    "start": "concurrently \"next start\" \"node --loader tsx bot/start.ts\""
+    "start": "node --import tsx server.js"
   },
   "dependencies": {
     "@discordjs/voice": "latest",

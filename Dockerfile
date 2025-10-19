@@ -77,4 +77,4 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node healthcheck.js
 
-CMD ["sh", "-c", "node --import tsx bot/start.ts & node server.js"]
+CMD ["node", "--import", "tsx", "server.js"]
