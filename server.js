@@ -11,8 +11,7 @@ const handle = app.getRequestHandler()
 
 async function startServer() {
   try {
-    // Import and start the Discord bot
-    const { startBot } = await import("./bot/index.js")
+    const { getBotInstance } = await import("./bot/index.js")
     const { config } = await import("./bot/config.js")
 
     if (!config.discordToken) {
@@ -22,7 +21,8 @@ async function startServer() {
     }
 
     console.log("[v0] Starting Discord bot...")
-    await startBot()
+    const bot = getBotInstance()
+    await bot.start()
     console.log("[v0] Discord bot started successfully")
 
     // Prepare Next.js
