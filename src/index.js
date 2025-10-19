@@ -19,18 +19,10 @@ const { addPlayed, getPlayed } = require('./util/history');
 const { importYouTubePlaylist } = require('./util/playlist_import');
 const { recommend } = require('./util/reco');
 
-const PORT = Number(process.env.PORT || process.env.PANEL_PORT || 3000);
+const PORT = process.env.PANEL_PORT || 3000;
 const app = express();
-// --- Safe singleton for HTTP server & socket.io to avoid EADDRINUSE on double-inits ---
-const server = global.__musicbot_server || http.createServer(app);
-if (!global.__musicbot_server) {
-  global.__musicbot_server = server;
-}
-const io = global.__musicbot_io || new Server(server);
-if (!global.__musicbot_io) {
-  global.__musicbot_io = io;
-}
-// --- end singleton ---
+const server = http.createServer(app);
+const io = new Server(server);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -45,13 +37,6 @@ app.use(
   })
 );
 
-
-// Health endpoint for container healthcheck
-let __isReady = false;
-app.get('/healthz', (req, res) => {
-  // If the web is up, return 200; readiness flips true after client ready
-  res.status(200).json({ ok: true, ready: __isReady });
-});
 // ---- Login Pages ----
 function requireAuth(req, res, next) {
   if (req.session?.authed) return next();
