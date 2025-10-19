@@ -60,6 +60,7 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/bot ./bot
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/healthcheck.js ./healthcheck.js
 
 # Create data directory for cookies and persistent data
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
@@ -73,5 +74,7 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node healthcheck.js
 
 CMD ["sh", "-c", "node --import tsx bot/start.ts & node server.js"]
