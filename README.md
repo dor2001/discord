@@ -1,12 +1,23 @@
-# Discord Music Bot • Spotify-like Web Panel (v3.1)
-- ייבוא פלייליסטים **מיוטיוב** אל פלייליסט פנימי
-- המלצות לפי **ז׳אנרים מועדפים** + **היסטוריית האזנה** (data/history.json)
-- כל מה שב-v3: UI בסגנון Spotify, Drag & Drop, Repeat/Shuffle, Settings Persist, Live Announce, Dynamic Voice
+# Discord Music Bot + Web Dashboard (Multi-Guild, Seek/Jump Controls)
 
-## שימוש מהפאנל
-- ייבוא: הזן YouTube Playlist URL + שם יעד → "ייבא".
-- המלצות: "רענן" תחת "המלצות בשבילי".
+## Quick Start
+1. Install Node 18+
+2. Unzip the project, then:
+```bash
+cp .env.example .env
+# Fill DISCORD_TOKEN and CLIENT_ID
+npm i
+npm run start
+```
+This starts the Discord bot **and** the web dashboard on the same process (port from `.env` PORT, default 3000).
 
-## פקודות חדשות
-- `/import url:<YT playlist URL> name:<שם>` (Admin)
-- `/recommend limit:<כמות>` – שולח הצעות לפאנל.
+- Open `http://localhost:3000` for the dashboard.
+- Use the dashboard to pick a **Guild**, **Voice Channel**, control **Play/Pause/Skip/Stop**, **Forward/Back 10s**, **seek to time**, set **Volume**, and manage the **Queue**.
+- Works across **multiple servers at once**. Each guild has its own independent player and queue.
+
+## Notes
+- Supports URLs or search queries (YouTube, SoundCloud, etc.) using `play-dl`.
+- **Seek** recreates the stream at the requested timestamp (works while playing or paused).
+- Slash commands are included as a fallback: `/join`, `/play`, `/pause`, `/resume`, `/skip`, `/seek`, `/np`, `/leave`.
+
+If YouTube blocks unauthenticated playback, configure cookies in `play-dl` docs or try a VPN. 
