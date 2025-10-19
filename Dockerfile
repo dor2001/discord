@@ -3,9 +3,10 @@ FROM node:20-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NODE_ENV=production
+# נכפה שימוש ב-opusscript (ללא @discordjs/opus)
 ENV PRISM_MEDIA_OPUS=opusscript
 
-# מערכת בסיס + ffmpeg סטטי + yt-dlp בינארי
+# מערכת בסיס + ffmpeg סטטי + yt-dlp בינארי (ללא Python)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates xz-utils \
  && arch="$(uname -m)" \
@@ -29,20 +30,24 @@ RUN apt-get update \
 # ===== App =====
 WORKDIR /app
 COPY package*.json ./
+
+# אין לנו צורך ב-python/build-tools כי opusscript טהור JS
 RUN npm install --omit=dev
+
+# קוד האפליקציה
 COPY . .
 
 # ניקוי
 RUN rm -rf /var/lib/apt/lists/* /tmp/*
 
+# נתונים מתמשכים (settings/history/cookies)
 VOLUME ["/app/data"]
 
+# קונפיג
 ENV PANEL_PORT=3000
 EXPOSE 3000
 
-# ---- HEALTHCHECK (חדש) ----
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -fsS "http://127.0.0.1:${PANEL_PORT:-3000}/healthz" >/dev/null || exit 1
 
-# Entrypoint
 CMD ["npm","start"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD curl -fsS http://127.0.0.1:${PANEL_PORT:-3000}/healthz || exit 1

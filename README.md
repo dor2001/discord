@@ -1,25 +1,12 @@
-# Discord Music Bot Dashboard (Fixed)
+# Discord Music Bot • Spotify-like Web Panel (v3.1)
+- ייבוא פלייליסטים **מיוטיוב** אל פלייליסט פנימי
+- המלצות לפי **ז׳אנרים מועדפים** + **היסטוריית האזנה** (data/history.json)
+- כל מה שב-v3: UI בסגנון Spotify, Drag & Drop, Repeat/Shuffle, Settings Persist, Live Announce, Dynamic Voice
 
-גרסה זו מתקנת את קריסות `EADDRINUSE: 3000` ע״י:
-- שרת Web שהוא singleton עם טיפול ב־EADDRINUSE.
-- Healthcheck שנשען על `/healthz` ומכבד `PORT`/`PANEL_PORT`.
-- ללא סודות baked-in — מעבירים ENV בזמן ריצה בלבד.
+## שימוש מהפאנל
+- ייבוא: הזן YouTube Playlist URL + שם יעד → "ייבא".
+- המלצות: "רענן" תחת "המלצות בשבילי".
 
-## הרצה מקומית
-```bash
-cp .env.example .env  # מלאו את הערכים
-npm install
-npm start
-```
-
-## Docker
-```bash
-cp .env.example .env  # מלאו את הערכים
-docker compose up --build
-```
-
-אם פורט 3000 תפוס בהוסט, החליפו ל־3001:
-- בקובץ compose: `PORT=3001` ו־`"3001:3001"`
-- אין צורך לשנות קוד — הוא קורא את `PORT`.
-
-> שימו לב: אם טוקן הבוט נחשף בעבר, צרו חדש ב־Discord Developer Portal והחליפו בקובץ `.env`.
+## פקודות חדשות
+- `/import url:<YT playlist URL> name:<שם>` (Admin)
+- `/recommend limit:<כמות>` – שולח הצעות לפאנל.
