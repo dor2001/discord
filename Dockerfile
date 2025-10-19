@@ -3,11 +3,12 @@ FROM node:20-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NODE_ENV=production
+# נכפה שימוש ב-opusscript (ללא @discordjs/opus)
+ENV PRISM_MEDIA_OPUS=opusscript
 
-# מערכת בסיסית + כלי קומפילציה (ל־@discordjs/opus)
+# מערכת בסיס + ffmpeg סטטי + yt-dlp בינארי (ללא Python)
 RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-    curl ca-certificates xz-utils make g++ \
+ && apt-get install -y --no-install-recommends curl ca-certificates xz-utils \
  && arch="$(uname -m)" \
  && if [ "$arch" = "x86_64" ] || [ "$arch" = "amd64" ]; then \
       echo ">> Using static ffmpeg build (amd64)"; \
@@ -30,25 +31,23 @@ RUN apt-get update \
 WORKDIR /app
 COPY package*.json ./
 
-# npm install (לא ci) כדי לא להיכשל כשאין package-lock.json
+# אין לנו צורך ב-python/build-tools כי opusscript טהור JS
 RUN npm install --omit=dev
 
-# העתקת קבצי האפליקציה
+# קוד האפליקציה
 COPY . .
 
-# ניקוי כלי build כדי לצמצם משקל
-RUN apt-get purge -y make g++ && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* /tmp/*
+# ניקוי
+RUN rm -rf /var/lib/apt/lists/* /tmp/*
 
 # נתונים מתמשכים (settings/history/cookies)
 VOLUME ["/app/data"]
 
-# קונפיג ברירת מחדל
+# קונפיג
 ENV PANEL_PORT=3000
 EXPOSE 3000
 
-# Healthcheck (אופציונלי)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PANEL_PORT||3000),res=>{if(res.statusCode<500)process.exit(0);process.exit(1)}).on('error',()=>process.exit(1))"
 
-# Run
 CMD ["npm","start"]
