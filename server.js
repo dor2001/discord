@@ -11,19 +11,7 @@ const handle = app.getRequestHandler()
 
 async function startServer() {
   try {
-    const { getBotInstance } = await import("./bot/index.js")
-    const { config } = await import("./bot/config.js")
-
-    if (!config.discordToken) {
-      console.error("[v0] DISCORD_TOKEN environment variable is required!")
-      console.error("[v0] Please set DISCORD_TOKEN in your environment or .env file")
-      process.exit(1)
-    }
-
-    console.log("[v0] Starting Discord bot...")
-    const bot = getBotInstance()
-    await bot.start()
-    console.log("[v0] Discord bot started successfully")
+    console.log("[v0] Starting Next.js server...")
 
     // Prepare Next.js
     await app.prepare()

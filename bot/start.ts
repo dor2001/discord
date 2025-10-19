@@ -1,5 +1,6 @@
 import { startBot } from "./index"
 import { config } from "./config"
+import { startHttpServer } from "./http-server"
 
 if (!config.discordToken) {
   console.error("[v0] DISCORD_TOKEN environment variable is required!")
@@ -11,6 +12,7 @@ if (!config.discordToken) {
 startBot()
   .then(() => {
     console.log("[v0] Discord bot started successfully")
+    startHttpServer()
   })
   .catch((error) => {
     console.error("[v0] Failed to start Discord bot:", error)
