@@ -111,3 +111,38 @@ MIT
 ## תמיכה
 
 לבעיות ושאלות, פתח issue ב-GitHub.
+
+## פתרון בעיות נפוצות
+
+### שגיאת "No space left on device" ב-Coolify
+
+אם אתה מקבל שגיאות של מקום דיסק בזמן deployment:
+
+1. **נקה Docker images ישנים**:
+   \`\`\`bash
+   docker system prune -a --volumes
+   \`\`\`
+
+2. **בדוק שימוש בדיסק**:
+   \`\`\`bash
+   df -h
+   \`\`\`
+
+3. **נקה logs ישנים**:
+   \`\`\`bash
+   docker logs --tail 100 <container-name>
+   \`\`\`
+
+4. **שדרג את השרת** - אם השרת קטן מדי, שקול שדרוג ל-VPS עם יותר מקום דיסק
+
+### שגיאת Redis "MISCONF"
+
+אם אתה מקבל שגיאות Redis:
+- האפליקציה לא משתמשת ב-Redis - זו בעיה בתשתית של Coolify
+- פנה לתמיכה של Coolify או נקה את מקום הדיסק בשרת
+
+### הבוט לא מתחבר
+
+1. ודא שה-Discord Token תקין
+2. בדוק שהבוט מוזמן לשרת עם ההרשאות הנכונות
+3. בדוק את הלוגים: `docker logs <container-name>`

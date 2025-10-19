@@ -1,87 +1,74 @@
 FROM node:22-alpine AS base
 
-# Install dependencies for audio processing
 RUN apk add --no-cache \
     python3 \
-    py3-pip \
     ffmpeg \
-    libsodium-dev
+    libsodium-dev && \
+    pip3 install --no-cache-dir --break-system-packages yt-dlp && \
+    rm -rf /var/cache/apk/* /tmp/* /root/.cache
 
-# Install yt-dlp
-RUN pip3 install --break-system-packages yt-dlp
-
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
 FROM base AS deps
-RUN npm install
+COPY package*.json ./
+RUN npm ci --omit=dev --no-audit --no-fund && \
+    npm cache clean --force
 
-# Build stage
 FROM base AS builder
 
 ARG DISCORD_TOKEN
 ARG ADMIN_USER
 ARG ADMIN_PASS
-ARG CLIENT_ID
-ARG PIPED_URL
-ARG DASHBOARD_ORIGIN
+ARG PIPED_INSTANCE
+ARG SESSION_SECRET
+ARG DATA_PATH
+ARG COOKIES_PATH
 
 ENV DISCORD_TOKEN=${DISCORD_TOKEN}
 ENV ADMIN_USER=${ADMIN_USER}
 ENV ADMIN_PASS=${ADMIN_PASS}
-ENV CLIENT_ID=${CLIENT_ID}
-ENV PIPED_INSTANCE=${PIPED_URL}
-ENV DASHBOARD_ORIGIN=${DASHBOARD_ORIGIN}
+ENV PIPED_INSTANCE=${PIPED_INSTANCE}
+ENV SESSION_SECRET=${SESSION_SECRET}
+ENV DATA_PATH=${DATA_PATH:-./data}
+ENV COOKIES_PATH=${COOKIES_PATH:-./data/cookies.txt}
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY package*.json ./
+RUN npm ci --no-audit --no-fund
+
 COPY . .
 
-RUN npm run build
+RUN npm run build && \
+    npm cache clean --force && \
+    rm -rf /tmp/* /root/.cache
 
-# Production stage
 FROM base AS runner
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create app user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nextjs:nodejs /app/healthcheck.js ./healthcheck.js
+COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
-COPY --from=builder /app/dist ./dist
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/discord.js ./node_modules/discord.js
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@discordjs ./node_modules/@discordjs
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/libsodium-wrappers ./node_modules/libsodium-wrappers
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/prism-media ./node_modules/prism-media
 
-COPY --from=builder /app/node_modules/discord.js ./node_modules/discord.js
-COPY --from=builder /app/node_modules/@discordjs ./node_modules/@discordjs
-COPY --from=builder /app/node_modules/libsodium-wrappers ./node_modules/libsodium-wrappers
-COPY --from=builder /app/node_modules/@types ./node_modules/@types
-COPY --from=builder /app/node_modules/ws ./node_modules/ws
-COPY --from=builder /app/node_modules/undici ./node_modules/undici
-COPY --from=builder /app/node_modules/prism-media ./node_modules/prism-media
-
-COPY --from=builder /app/healthcheck.js ./healthcheck.js
-COPY --from=builder /app/server.js ./server.js
-
-# Create data directory for cookies and persistent data
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
 
-# Switch to non-root user
 USER nextjs
 
-# Expose ports
 EXPOSE 3000 3001
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node healthcheck.js
 
 CMD ["node", "server.js"]
