@@ -38,6 +38,8 @@ export class MusicPlayer {
   private currentResource: AudioResource | null = null
   private isPaused = false
   private guildId: string
+  private currentPosition = 0
+  private startTime: number | null = null
 
   constructor(
     private connection: VoiceConnection,
@@ -96,6 +98,9 @@ export class MusicPlayer {
   private async playTrack(track: Track) {
     try {
       console.log("[v0] Playing track:", track.title)
+
+      this.currentPosition = 0
+      this.startTime = Date.now()
 
       const ytdlp = spawn("yt-dlp", ["-f", "bestaudio", "-o", "-", "--cookies", config.cookiesPath, track.url])
 
@@ -221,11 +226,90 @@ export class MusicPlayer {
     return this.currentTrack
   }
 
+  public async seek(seconds: number) {
+    if (!this.currentTrack) return
+
+    const track = this.currentTrack.track
+    this.currentPosition = seconds
+
+    try {
+      console.log("[v0] Seeking to:", seconds, "seconds")
+
+      const ytdlp = spawn("yt-dlp", ["-f", "bestaudio", "-o", "-", "--cookies", config.cookiesPath, track.url])
+
+      const ffmpeg = spawn("ffmpeg", [
+        "-ss",
+        seconds.toString(),
+        "-i",
+        "pipe:0",
+        "-f",
+        "s16le",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        "-af",
+        `volume=${this.volume / 100}`,
+        "pipe:1",
+      ])
+
+      ytdlp.stdout.pipe(ffmpeg.stdin)
+
+      this.currentResource = createAudioResource(ffmpeg.stdout, {
+        inputType: "s16le" as any,
+      })
+
+      this.audioPlayer.play(this.currentResource)
+      this.startTime = Date.now() - seconds * 1000
+      this.isPaused = false
+      this.emitStateUpdate()
+    } catch (error) {
+      console.error("[v0] Failed to seek:", error)
+    }
+  }
+
+  public getCurrentPosition(): number {
+    if (!this.startTime || this.isPaused) {
+      return this.currentPosition
+    }
+    return this.currentPosition + (Date.now() - this.startTime) / 1000
+  }
+
+  public reorderQueue(fromIndex: number, toIndex: number) {
+    if (fromIndex < 0 || fromIndex >= this.queue.length || toIndex < 0 || toIndex >= this.queue.length) {
+      return
+    }
+
+    const [item] = this.queue.splice(fromIndex, 1)
+    this.queue.splice(toIndex, 0, item)
+
+    botEventEmitter.emitPlayerUpdate({
+      guildId: this.guildId,
+      type: "queue_update",
+      data: { queue: this.queue },
+    })
+  }
+
+  public removeFromQueue(index: number) {
+    if (index < 0 || index >= this.queue.length) {
+      return
+    }
+
+    this.queue.splice(index, 1)
+
+    botEventEmitter.emitPlayerUpdate({
+      guildId: this.guildId,
+      type: "queue_update",
+      data: { queue: this.queue },
+    })
+  }
+
   public getStatus() {
     return {
       isPlaying: this.isPlaying(),
       isPaused: this.isPaused,
       currentTrack: this.currentTrack,
+      currentPosition: this.getCurrentPosition(),
       queue: this.queue,
       loopMode: this.loopMode,
       shuffleEnabled: this.shuffleEnabled,

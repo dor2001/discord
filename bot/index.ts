@@ -138,6 +138,22 @@ export class MusicBot {
   public getGuildData(guildId: string): GuildData | undefined {
     return this.guilds.get(guildId)
   }
+
+  public getVoiceChannels(guildId: string) {
+    const guild = this.client.guilds.cache.get(guildId)
+    if (!guild) {
+      return []
+    }
+
+    return guild.channels.cache
+      .filter((channel) => channel.isVoiceBased())
+      .map((channel) => ({
+        id: channel.id,
+        name: channel.name,
+        type: channel.type,
+        userCount: channel.isVoiceBased() ? channel.members.size : 0,
+      }))
+  }
 }
 
 declare global {
