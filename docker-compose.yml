@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  music-bot:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - PIPED_INSTANCE=${PIPED_INSTANCE:-https://pipedapi.kavin.rocks}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - COOKIES_PATH=/app/data/cookies.txt
+      - DATA_PATH=/app/data
+      - PORT=3000
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/bot/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

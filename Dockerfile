@@ -1,27 +1,65 @@
-# ===== Base =====
-FROM node:20-slim
+FROM node:20-alpine AS base
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV NODE_ENV=production
-ENV PRISM_MEDIA_OPUS=opusscript
+# Install dependencies for audio processing
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    ffmpeg \
+    libsodium-dev
 
-# base + ffmpeg static + yt-dlp binary (no Python)
-RUN apt-get update  && apt-get install -y --no-install-recommends curl ca-certificates xz-utils  && arch="$(uname -m)"  && if [ "$arch" = "x86_64" ] || [ "$arch" = "amd64" ]; then       echo ">> Using static ffmpeg build (amd64)";       curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o /tmp/ffmpeg.tar.xz;       tar -xf /tmp/ffmpeg.tar.xz -C /tmp;       mv /tmp/ffmpeg-*-amd64-static/ffmpeg /usr/local/bin/ffmpeg;       mv /tmp/ffmpeg-*-amd64-static/ffprobe /usr/local/bin/ffprobe;       chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe;     else       echo ">> Fallback to apt ffmpeg for $arch";       apt-get install -y --no-install-recommends ffmpeg;     fi  && echo ">> Installing yt-dlp binary"  && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o /usr/local/bin/yt-dlp  && chmod a+rx /usr/local/bin/yt-dlp  && yt-dlp --version  && ffmpeg -version
+# Install yt-dlp
+RUN pip3 install --break-system-packages yt-dlp
 
-# ===== App =====
+# Set working directory
 WORKDIR /app
-COPY package*.json ./
-RUN npm install --omit=dev
 
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+FROM base AS deps
+RUN npm ci
+
+# Build stage
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN rm -rf /var/lib/apt/lists/* /tmp/*
+# Build Next.js app
+RUN npm run build
 
-VOLUME ["/app/data"]
+# Production stage
+FROM base AS runner
 
-ENV PANEL_PORT=3000
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Create app user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy built application
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/bot ./bot
+COPY --from=builder /app/lib ./lib
+
+# Create data directory for cookies and persistent data
+RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
+
+# Switch to non-root user
+USER nextjs
+
+# Expose port
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PANEL_PORT||3000),res=>{if(res.statusCode<500)process.exit(0);process.exit(1)}).on('error',()=>process.exit(1))"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-CMD ["npm","start"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/bot/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Start both Next.js and Discord bot
+CMD ["sh", "-c", "node bot/start.js & node server.js"]
