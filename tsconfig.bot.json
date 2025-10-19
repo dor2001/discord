@@ -12,7 +12,9 @@
     "strict": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {}
   },
   "include": ["bot/**/*.ts", "lib/**/*.ts"],
   "exclude": ["node_modules", "dist", ".next", "**/*.test.ts"]
