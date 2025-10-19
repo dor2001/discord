@@ -1,142 +1,161 @@
+import express from "express";
+import session from "express-session";
+import fetch from "node-fetch";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import express from 'express';
-import cors from 'cors';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { execFile } from 'node:child_process';
-import { moveToChannel, state, ensureLockOrThrow, play, stop as stopPlay, unlockGuild, seek as seekPlay } from '../player/manager.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, '../../public')));
+const PIPED_URL = process.env.PIPED_URL || "https://piped.video";
+const PORT = Number(process.env.PORT || process.env.PANEL_PORT || 3000);
 
-let clientRef = null; // set from bot.js
+export function createWebServer(ctx) {
+  const app = express();
+  app.use(express.json());
 
-export function bindDiscordClient(client){
-  clientRef = client;
-}
+  app.use(session({
+    secret: process.env.SESSION_SECRET || "changeme",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 1000 * 60 * 60 * 12 }
+  }));
 
-// ---- API ----
-app.get('/api/guilds', async (req, res) => {
-  try {
-    const guilds = clientRef.guilds.cache.map(g => ({ id: g.id, name: g.name, icon: g.icon }));
-    res.json({ ok: true, guilds });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
-  }
-});
-
-app.get('/api/guilds/:gid/channels', async (req, res) => {
-  try {
-    const { gid } = req.params;
-    const type = (req.query.type || 'voice').toLowerCase();
-    const guild = clientRef.guilds.cache.get(gid) || await clientRef.guilds.fetch(gid);
-    await guild.channels.fetch();
-    const channels = guild.channels.cache
-      .filter(ch => {
-        if (type === 'voice') return ch.type === 2;
-        if (type === 'text')  return ch.type === 0;
-        return false;
-      })
-      .map(ch => ({ id: ch.id, name: ch.name, type: ch.type }));
-    res.json({ ok: true, channels });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
-  }
-});
-
-app.post('/api/guilds/:gid/move', async (req, res) => {
-  try {
-    const { gid } = req.params;
-    const { channelId, lock } = req.body;
-    const guild = clientRef.guilds.cache.get(gid) || await clientRef.guilds.fetch(gid);
-    const ch = await guild.channels.fetch(channelId);
-    if (!ch || ch.type !== 2) return res.status(400).json({ ok:false, error:'channelId אינו ערוץ קול' });
-    const s = await moveToChannel(guild, ch.id, !!lock);
-    res.json({ ok: true, moved:true, locked: !!s.lockedChannelId, channel: { id: ch.id, name: ch.name } });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
-  }
-});
-
-app.post('/api/guilds/:gid/unlock', async (req, res) => {
-  try {
-    const { gid } = req.params;
-    unlockGuild(gid);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
-  }
-});
-
-// Search via yt-dlp
-const YTDLP = '/usr/local/bin/yt-dlp';
-app.get('/api/search', async (req, res) => {
-  const q = (req.query.q||'').trim();
-  if (!q) return res.status(400).json({ ok: false, error: 'missing q' });
-  const args = ['--dump-json','--no-warnings','--default-search','ytsearch','ytsearch10:'+q];
-  execFile(YTDLP, args, { timeout: 15000, maxBuffer: 5*1024*1024 }, (err, stdout, stderr) => {
-    if (err) return res.status(500).json({ ok:false, error:String(err), stderr });
-    const items = stdout.split('\n').filter(Boolean).map(l=>{
-      try {
-        const j = JSON.parse(l);
-        return { id:j.id, title:j.title, url:j.webpage_url, duration:j.duration, thumbnail:(j.thumbnails?.[0]?.url)||null, uploader:j.uploader };
-      } catch { return null; }
-    }).filter(Boolean);
-    res.json({ ok:true, items });
+  // Simple login
+  app.post("/api/login", (req,res)=>{
+    const { username, password } = req.body || {};
+    if (username === (process.env.ADMIN_USER||"admin") && password === (process.env.ADMIN_PASS||"admin123")) {
+      req.session.user = { username };
+      return res.json({ ok: true });
+    }
+    return res.status(401).json({ ok: false, error: "Unauthorized" });
   });
-});
 
-// Play current selection URL in channel
-app.post('/api/play', async (req, res) => {
-  try {
-    const { gid, channelId, url } = req.body;
-    if (!gid || !channelId || !url) return res.status(400).json({ ok:false, error:'gid, channelId, url נדרשים' });
-    const guild = clientRef.guilds.cache.get(gid) || await clientRef.guilds.fetch(gid);
-    ensureLockOrThrow(gid, channelId);
-    const r = await play(guild, channelId, url, 0);
-    res.json({ ok:true, ...r });
-  } catch (e) {
-    res.status(500).json({ ok:false, error:String(e) });
-  }
-});
+  app.post("/api/logout", (req,res)=>{
+    req.session.destroy(()=>res.json({ ok: true }));
+  });
 
-// Seek (seconds)
-app.post('/api/seek', async (req, res) => {
-  try {
-    const { gid, seconds } = req.body;
-    if (!gid) return res.status(400).json({ ok:false, error:'gid נדרש' });
-    const guild = clientRef.guilds.cache.get(gid) || await clientRef.guilds.fetch(gid);
-    const r = await seekPlay(guild, Number(seconds)||0);
-    res.json({ ok:true, ...r });
-  } catch (e) {
-    res.status(500).json({ ok:false, error:String(e) });
-  }
-});
+  const auth = (req,res,next)=>{
+    if (req.session?.user) return next();
+    res.status(401).json({ error: "Unauthorized" });
+  };
 
-app.post('/api/stop', async (req, res) => {
-  try {
-    const { gid } = req.body;
-    if (!gid) return res.status(400).json({ ok:false, error:'gid נדרש' });
-    stopPlay(gid);
-    res.json({ ok:true });
-  } catch (e) {
-    res.status(500).json({ ok:false, error:String(e) });
-  }
-});
+  // List guilds
+  app.get("/api/guilds", auth, (req,res)=>{
+    const guilds = ctx.client.guilds.cache.map(g=>({ id: g.id, name: g.name }));
+    res.json(guilds);
+  });
 
-app.get('/healthz', (req,res)=>{
-  const guilds = [];
-  for (const [gid, s] of state.entries()){
-    guilds.push({ gid, lockedChannelId: s.lockedChannelId||null, url: s.url||null });
-  }
-  res.json({ ok:true, guilds });
-});
+  // List voice channels in a guild
+  app.get("/api/channels", auth, async (req,res)=>{
+    const { guildId } = req.query;
+    const guild = ctx.client.guilds.cache.get(guildId);
+    if (!guild) return res.status(404).json({ error: "Guild not found" });
+    const channels = (await guild.channels.fetch()).filter(c=>c && c.type===2).map(c=>({ id: c.id, name: c.name }));
+    res.json(channels);
+  });
 
-export function startWebServer(){
-  const port = Number(process.env.PANEL_PORT || 3000);
-  app.listen(port, '0.0.0.0', ()=>console.log(`Web UI on http://localhost:${port}`));
+  // Lock/unlock voice channel
+  app.post("/api/lock", auth, async (req,res)=>{
+    const { guildId, channelId } = req.body;
+    const g = ctx.client.guilds.cache.get(guildId);
+    if (!g) return res.status(404).json({ error: "Guild not found" });
+    ctx.getMusic(guildId).setLock(channelId||null);
+    res.json({ ok: true, lockedChannelId: channelId || null });
+  });
+
+  // Move bot
+  app.post("/api/move", auth, async (req,res)=>{
+    try {
+      const { guildId, channelId } = req.body;
+      const g = ctx.client.guilds.cache.get(guildId);
+      if (!g) return res.status(404).json({ error: "Guild not found" });
+      await ctx.getMusic(guildId).move(channelId);
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(400).json({ error: String(e.message||e) });
+    }
+  });
+
+  // Piped search (YouTube mirror)
+  app.get("/api/search", auth, async (req,res)=>{
+    const q = (req.query.q||"").toString().trim();
+    if (!q) return res.json([]);
+    const url = `${PIPED_URL}/api/v1/search?q=${encodeURIComponent(q)}&region=US&filter=videos`;
+    const data = await fetch(url).then(r=>r.json());
+    const items = (data || []).map(v=>({
+      videoId: v?.url?.split("watch?v=").pop() || v?.url?.split("/watch/").pop() || v?.id || v?.shortId || v?.url,
+      title: v.title,
+      duration: v.duration
+    })).filter(x=>x.videoId);
+    res.json(items.slice(0, 25));
+  });
+
+  // Play
+  app.post("/api/play", auth, async (req,res)=>{
+    try {
+      const { guildId, channelId, videoId } = req.body;
+      const g = ctx.client.guilds.cache.get(guildId);
+      if (!g) return res.status(404).json({ error: "Guild not found" });
+      const music = ctx.getMusic(guildId);
+      if (channelId) await music.move(channelId);
+      const meta = await music.addByVideoId(videoId, req.session.user.username);
+      res.json({ ok: true, now: music.getState() });
+    } catch (e) {
+      res.status(400).json({ error: String(e.message||e) });
+    }
+  });
+
+  app.post("/api/seek", auth, async (req,res)=>{
+    try {
+      const { guildId, seconds } = req.body;
+      const music = ctx.getMusic(guildId);
+      await music.seek(Number(seconds||0));
+      res.json({ ok: true, now: music.getState().current });
+    } catch (e) {
+      res.status(400).json({ error: String(e.message||e) });
+    }
+  });
+
+  app.post("/api/skip", auth, (req,res)=>{
+    const { guildId } = req.body;
+    ctx.getMusic(guildId).skip();
+    res.json({ ok: true });
+  });
+
+  app.post("/api/pause", auth, (req,res)=>{
+    const { guildId } = req.body;
+    ctx.getMusic(guildId).pause();
+    res.json({ ok: true });
+  });
+
+  app.post("/api/resume", auth, (req,res)=>{
+    const { guildId } = req.body;
+    ctx.getMusic(guildId).resume();
+    res.json({ ok: true });
+  });
+
+  app.post("/api/stop", auth, (req,res)=>{
+    const { guildId } = req.body;
+    ctx.getMusic(guildId).stop();
+    res.json({ ok: true });
+  });
+
+  app.get("/api/state", auth, (req,res)=>{
+    const { guildId } = req.query;
+    const music = ctx.getMusic(guildId);
+    res.json(music.getState());
+  });
+
+  // Static UI
+  app.use(express.static(path.join(__dirname, "static")));
+  app.get("*", (req,res)=>{
+    res.sendFile(path.join(__dirname, "static", "index.html"));
+  });
+
+  const server = app.listen(PORT, ()=>{
+    console.log(`Web UI on http://localhost:${PORT}`);
+  });
+
+  return { app, server };
 }
-
