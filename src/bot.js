@@ -40,10 +40,10 @@ const onReady = async () => {
   console.log(`Logged in as ${client.user.tag}`);
   await registerCommands();
   // Start web dashboard on same process
-  startWeb(client, music, CONFIG.port);
-};
+  
+if (!globalThis.__WEB_STARTED__) { globalThis.__WEB_STARTED__ = true; startWeb(client, music, CONFIG.port); }
+;
 client.once('ready', onReady);
-client.once('clientReady', onReady);
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;

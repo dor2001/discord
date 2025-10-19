@@ -4,7 +4,7 @@ dotenv.config();
 export const CONFIG = {
   token: process.env.DISCORD_TOKEN || '',
   clientId: process.env.CLIENT_ID || '',
-  port: Number(process.env.PORT || 3000),
+  port: Number(process.env.PORT || process.env.PANEL_PORT || 3000),
   dashboardOrigin: process.env.DASHBOARD_ORIGIN || `http://localhost:${process.env.PORT || 3000}`
 };
 
