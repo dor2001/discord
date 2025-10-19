@@ -1,19 +1,13 @@
 # ===== Base =====
 FROM node:20-slim
 
-# פחות דיאלוגים ב-apt
 ENV DEBIAN_FRONTEND=noninteractive
-# מצב Production עבור Node
 ENV NODE_ENV=production
 
-# התקנות סיסטם: רק מה שחייבים
-# - curl + ca-certificates להורדות HTTPS
-# - ffmpeg:
-#    * ב-AMD64: הורדה של בינארי סטטי קטן (ללא תלות בחבילות כבדות)
-#    * בשאר הארכיטקטורות: התקנה דרך apt (כבדה יותר, אבל אמינה)
-# - yt-dlp: בינארי רשמי קטן (ללא pip/Python)
+# מערכת בסיסית + כלים לקומפילציה של opus
 RUN apt-get update \
- && apt-get install -y --no-install-recommends curl ca-certificates xz-utils \
+ && apt-get install -y --no-install-recommends \
+    curl ca-certificates xz-utils python3 make g++ \
  && arch="$(uname -m)" \
  && if [ "$arch" = "x86_64" ] || [ "$arch" = "amd64" ]; then \
       echo ">> Using static ffmpeg build (amd64)"; \
@@ -28,29 +22,27 @@ RUN apt-get update \
     fi \
  && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
        -o /usr/local/bin/yt-dlp \
- && chmod a+rx /usr/local/bin/yt-dlp \
- && rm -rf /var/lib/apt/lists/* /tmp/*
+ && chmod a+rx /usr/local/bin/yt-dlp
 
 # ===== App =====
 WORKDIR /app
-
-# התקנת תלויות לפי ה-lock (מהיר ועקבי)
 COPY package*.json ./
-RUN npm ci --omit=dev
 
-# קוד האפליקציה
+# שים לב — npm install במקום npm ci כדי למנוע בעיות lockfile
+RUN npm install --omit=dev
+
 COPY . .
 
-# ווליום לנתונים מתמשכים (settings/history)
+# לאחר ההתקנה, ננקה את הכלים הכבדים (נשאיר רק ריצה)
+RUN apt-get purge -y python3 make g++ && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* /tmp/*
+
+# ווליום לשמירה על מידע
 VOLUME ["/app/data"]
 
-# ברירת מחדל לפורט הפאנל
 ENV PANEL_PORT=3000
 EXPOSE 3000
 
-# בריאות (אופציונלי, אפשר להסיר אם לא תרצה)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PANEL_PORT||3000),res=>{if(res.statusCode<500)process.exit(0);process.exit(1)}).on('error',()=>process.exit(1))"
 
-# הפעלה
 CMD ["npm","start"]
