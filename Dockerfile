@@ -56,13 +56,11 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/dist/bot ./dist/bot
+COPY --from=builder /app/bot ./bot
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/healthcheck.js ./healthcheck.js
-COPY --from=builder /app/start.sh ./start.sh
-
-RUN chmod +x /app/start.sh
+COPY --from=builder /app/server.js ./server.js
 
 # Create data directory for cookies and persistent data
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
@@ -79,4 +77,4 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node healthcheck.js
 
-CMD ["/app/start.sh"]
+CMD ["node", "server.js"]

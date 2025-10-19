@@ -4,13 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build && npm run build:bot",
-    "build:bot": "tsc -p tsconfig.bot.json",
+    "build": "next build",
     "dev": "concurrently \"npm run dev:bot\" \"npm run dev:next\"",
     "dev:bot": "tsx watch bot/start.ts",
     "dev:next": "next dev",
     "lint": "next lint",
-    "start": "concurrently \"node dist/bot/start.js\" \"node server.js\""
+    "start": "node server.js"
   },
   "dependencies": {
     "@discordjs/voice": "latest",
@@ -37,6 +36,7 @@
     "swr": "latest",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.19.2",
     "tw-animate-css": "latest",
     "url": "latest"
   },
@@ -50,7 +50,6 @@
     "eslint-config-next": "15.1.4",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
-    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }

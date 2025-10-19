@@ -1,7 +1,8 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs"
 import { join } from "path"
+import { config } from "./config"
 
-const STATE_FILE = join(process.cwd(), "data", "bot-state.json")
+const STATE_FILE = join(config.dataPath, "bot-state.json")
 
 export interface BotState {
   isReady: boolean
@@ -17,9 +18,8 @@ export interface BotState {
 
 export function saveState(state: BotState) {
   try {
-    const dir = join(process.cwd(), "data")
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true })
+    if (!existsSync(config.dataPath)) {
+      mkdirSync(config.dataPath, { recursive: true })
     }
     writeFileSync(STATE_FILE, JSON.stringify(state, null, 2))
     console.log("[v0] State saved:", state.guilds.length, "guilds")

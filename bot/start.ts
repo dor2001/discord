@@ -14,7 +14,7 @@ startBot()
     console.log("[v0] Discord bot started successfully")
     startHttpServer()
   })
-  .catch((error) => {
+  .catch((error: Error) => {
     console.error("[v0] Failed to start Discord bot:", error)
     process.exit(1)
   })

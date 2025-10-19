@@ -1,14 +1,20 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2022",
-    "outDir": "./dist/bot",
-    "rootDir": "./bot",
+    "outDir": "./dist",
     "declaration": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
-  "include": ["bot/**/*"],
-  "exclude": ["node_modules"]
+  "include": ["bot/**/*.ts", "lib/**/*.ts"],
+  "exclude": ["node_modules", "dist", ".next", "**/*.test.ts"]
 }

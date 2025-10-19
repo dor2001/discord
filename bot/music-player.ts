@@ -9,7 +9,7 @@ import {
 } from "@discordjs/voice"
 import { spawn } from "child_process"
 import { config } from "./config"
-import { botEventEmitter } from "@/lib/event-emitter"
+import { botEventEmitter } from "../lib/event-emitter"
 
 export interface Track {
   id: string
@@ -47,7 +47,7 @@ export class MusicPlayer {
   ) {
     this.guildId = guildId
     this.audioPlayer = createAudioPlayer()
-    this.subscription = connection.subscribe(this.audioPlayer)
+    this.subscription = connection.subscribe(this.audioPlayer) ?? null
 
     this.audioPlayer.on(AudioPlayerStatus.Idle, () => {
       console.log("[v0] Track finished, playing next")
