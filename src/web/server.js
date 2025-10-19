@@ -1,54 +1,38 @@
-// src/web/server.js
-import http from 'http';
 import express from 'express';
+import cors from 'cors';
 
-let serverInstance = null;
-
-export function buildApp() {
+export function createWebServer({ client }) {
   const app = express();
 
-  app.get('/', (_req, res) => {
-    res.type('text/plain').send('Discord Music Bot Dashboard is running');
+  // אפשר להתאים את המקור לפי סביבת הייצור (דומיין שלך)
+  app.use(cors({ origin: true }));
+  app.use(express.json());
+
+  // בריאות לקונטיינר / לדוקר
+  app.get('/healthz', (req, res) => {
+    const up = client?.user ? 'ok' : 'starting';
+    res.status(up === 'ok' ? 200 : 503).json({ status: up });
   });
 
-  // Health endpoint for Docker HEALTHCHECK
-  app.get('/healthz', (_req, res) => res.status(200).send('ok'));
-
-  return app;
-}
-
-export async function startWeb({
-  port = Number(process.env.PORT) || Number(process.env.PANEL_PORT) || 3000,
-  app = buildApp(),
-} = {}) {
-  if (serverInstance && serverInstance.listening) {
-    return serverInstance; // already running
-  }
-
-  await new Promise((resolve, reject) => {
+  // >>> הנתיב החשוב: החזרת רשימת השרתים שהבוט מחובר אליהם
+  app.get('/api/guilds', (req, res) => {
     try {
-      serverInstance = http.createServer(app);
-      serverInstance.once('listening', () => {
-        console.log(`Web UI on http://localhost:${port}`);
-        resolve();
-      });
-      serverInstance.on('error', (err) => {
-        if (err && err.code === 'EADDRINUSE') {
-          console.error(`Port ${port} in use — skipping duplicate web start`);
-          resolve(); // don't crash the process
-        } else {
-          reject(err);
-        }
-      });
-      serverInstance.listen(port, '0.0.0.0');
-    } catch (e) {
-      reject(e);
+      // דורש GatewayIntentBits.Guilds כדי שה-cache יתמלא!
+      const guilds = client.guilds.cache.map(g => ({
+        id: g.id,
+        name: g.name,
+        icon: g.iconURL?.() || null,
+        memberCount: g.memberCount ?? null
+      }));
+      res.json({ guilds });
+    } catch (err) {
+      console.error('Failed to list guilds:', err);
+      res.status(500).json({ error: 'Failed to list guilds' });
     }
   });
 
-  return serverInstance;
-}
+  // (אופציונלי) סטטי ללוח – אם יש לך קבצי frontend
+  // app.use(express.static('public'));
 
-export function getServer() {
-  return serverInstance;
+  return app;
 }

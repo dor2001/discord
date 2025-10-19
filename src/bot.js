@@ -1,26 +1,47 @@
-// src/bot.js
-import { Client, GatewayIntentBits } from 'discord.js';
-import { startWeb } from './web/server.js';
+import 'dotenv/config';
+import {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  Events
+} from 'discord.js';
+import { createWebServer } from './web/server.js';
 
+const {
+  DISCORD_TOKEN,
+  PORT = process.env.PANEL_PORT || 3000
+} = process.env;
+
+// חשוב: לוודא שיש Intent של Guilds (וגם VoiceStates אם אתה מריץ מוזיקה)
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildVoiceStates
+  ],
+  partials: [Partials.Guild, Partials.Channel, Partials.User]
 });
 
-// Use the future-safe 'clientReady' event name
-client.once('clientReady', async () => {
-  console.log(`Logged in as ${client.user.tag}`);
-  if (!globalThis.__WEB_STARTED__) {
-    globalThis.__WEB_STARTED__ = true;
-    await startWeb(); // Launch web UI once
-  }
-  // TODO: register slash commands here if needed
+// נרשום סלאשים וכו' כרגיל...
+async function registerSlashCommands() {
+  // ... הקוד שלך לרישום פקודות
   console.log('Slash commands registered.');
-});
-
-const token = process.env.DISCORD_TOKEN;
-if (!token) {
-  console.error('DISCORD_TOKEN is missing – set it in your environment.');
-  process.exit(1);
 }
 
-client.login(token);
+// נחכה ללקוח שיהיה מוכן ואז נפעיל את הווב-סרבר
+client.once(Events.ClientReady, async () => {
+  console.log(`Logged in as ${client.user.tag}`);
+  await registerSlashCommands();
+
+  const app = createWebServer({ client });
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Web UI on http://localhost:${PORT}`);
+  });
+
+  // סגירה נקייה
+  const shutdown = () => server.close(() => process.exit(0));
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+});
+
+// התחברות לדיסקורד
+client.login(DISCORD_TOKEN);
