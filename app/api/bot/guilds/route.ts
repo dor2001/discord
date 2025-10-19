@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
-import { getBotInstance } from "@/bot/index"
+import { loadState } from "@/bot/state-manager"
 
 export async function GET() {
   try {
     await requireAuth()
 
-    const bot = getBotInstance()
-    console.log("[v0] API: Getting guilds, bot ready:", bot.client.isReady(), "guilds count:", bot.guilds.size)
-    const guilds = bot.getGuilds()
-    console.log("[v0] API: Returning guilds:", guilds)
+    const state = loadState()
 
-    return NextResponse.json({ guilds })
+    if (!state) {
+      console.log("[v0] API: No state file found, bot may not be ready yet")
+      return NextResponse.json({ guilds: [] })
+    }
+
+    console.log("[v0] API: Loaded state with", state.guilds.length, "guilds")
+    return NextResponse.json({ guilds: state.guilds })
   } catch (error) {
     console.error("[v0] Get guilds error:", error)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

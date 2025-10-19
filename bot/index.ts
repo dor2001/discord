@@ -2,6 +2,7 @@ import { Client, GatewayIntentBits, Collection } from "discord.js"
 import type { VoiceConnection } from "@discordjs/voice"
 import type { MusicPlayer } from "./music-player"
 import { config } from "./config"
+import { saveState } from "./state-manager"
 
 export interface GuildData {
   guildId: string
@@ -33,6 +34,15 @@ export class MusicBot {
     this.setupEventHandlers()
   }
 
+  private saveCurrentState() {
+    const state = {
+      isReady: this.isReady,
+      guilds: this.getGuilds(),
+      lastUpdate: Date.now(),
+    }
+    saveState(state)
+  }
+
   private setupEventHandlers() {
     this.client.on("ready", () => {
       console.log("[v0] Bot is ready! Logged in as:", this.client.user?.tag)
@@ -51,6 +61,7 @@ export class MusicBot {
       })
 
       console.log("[v0] Total guilds loaded:", this.guilds.size)
+      this.saveCurrentState()
       if (this.readyResolve) {
         this.readyResolve()
       }
@@ -66,6 +77,7 @@ export class MusicBot {
         player: null,
         connection: null,
       })
+      this.saveCurrentState()
     })
 
     this.client.on("guildDelete", (guild) => {
@@ -75,6 +87,7 @@ export class MusicBot {
         guildData.player.destroy()
       }
       this.guilds.delete(guild.id)
+      this.saveCurrentState()
     })
 
     this.client.on("voiceStateUpdate", (oldState, newState) => {
