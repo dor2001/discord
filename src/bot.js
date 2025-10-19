@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Client, GatewayIntentBits, Partials, REST, Routes } from "discord.js";
-import { startWeb as createWebServer } from "./web/server.js";
+import { createWebServer } from "./web/server.js";
 import { GuildMusic } from "./utils/music.js";
 
 const token = process.env.DISCORD_TOKEN;
