@@ -1,4 +1,11 @@
 import { startBot } from "./index"
+import { config } from "./config"
+
+if (!config.discordToken) {
+  console.error("[v0] DISCORD_TOKEN environment variable is required!")
+  console.error("[v0] Please set DISCORD_TOKEN in your environment or .env file")
+  process.exit(1)
+}
 
 // Start the Discord bot
 startBot()
