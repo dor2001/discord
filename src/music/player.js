@@ -1,11 +1,13 @@
 // src/music/player.js
+const { EventEmitter } = require("events");
 const { createAudioPlayer, createAudioResource, entersState, AudioPlayerStatus, joinVoiceChannel, VoiceConnectionStatus } = require("@discordjs/voice");
 const playdl = require("play-dl");
 const ytdl = require("ytdl-core");
 const { spawn } = require("child_process");
 
-class GuildPlayer {
+class GuildPlayer extends EventEmitter {
   constructor(guild, io) {
+    super();
     this.guild = guild;
     this.io = io;
     this.queue = [];
@@ -15,7 +17,6 @@ class GuildPlayer {
     this.player = createAudioPlayer();
   }
 
-  // יצירת חיבור לדיסקורד
   connect(voiceChannel) {
     if (!voiceChannel) throw new Error("No voice channel provided");
 
@@ -52,6 +53,8 @@ class GuildPlayer {
     const track = this.queue.shift();
     this.current = track;
     this.isPlaying = true;
+
+    this.emit("started", { track }); // 🔥 טריגר חדש לאירוע שהבוט התחיל לנגן שיר
     this.io.emit("nowPlaying", { guildId: this.guild.id, track });
 
     console.log("PLAYER playNext picked track:", track);
@@ -59,7 +62,6 @@ class GuildPlayer {
     let stream = null;
 
     try {
-      // ניסיון ראשון – play-dl
       const info = await playdl.video_info(track.url);
       const source = await playdl.stream_from_info(info);
       stream = source.stream;
@@ -68,7 +70,6 @@ class GuildPlayer {
       console.warn("play-dl failed:", e1.message);
 
       try {
-        // ניסיון שני – ytdl-core
         stream = ytdl(track.url, {
           filter: "audioonly",
           quality: "highestaudio",
@@ -79,16 +80,9 @@ class GuildPlayer {
         console.warn("ytdl-core failed:", e2.message);
 
         try {
-          // ניסיון שלישי – yt-dlp דרך piped.video
           const pipedUrl = track.url.replace("youtube.com", "piped.video");
           console.log("PLAYER using yt-dlp + piped.video fallback");
-          stream = spawn("yt-dlp", [
-            "-f",
-            "bestaudio",
-            "-o",
-            "-",
-            pipedUrl
-          ]).stdout;
+          stream = spawn("yt-dlp", ["-f", "bestaudio", "-o", "-", pipedUrl]).stdout;
         } catch (e3) {
           console.error("yt-dlp fallback failed:", e3.message);
           this.playNext();
@@ -141,6 +135,14 @@ class GuildPlayer {
     this.isPlaying = false;
     this.current = null;
     this.queue = [];
+  }
+
+  getState() {
+    return {
+      current: this.current,
+      queue: this.queue,
+      isPlaying: this.isPlaying,
+    };
   }
 }
 
