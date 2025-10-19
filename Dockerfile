@@ -52,12 +52,20 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy built application
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
+
+COPY --from=builder /app/node_modules/discord.js ./node_modules/discord.js
+COPY --from=builder /app/node_modules/@discordjs ./node_modules/@discordjs
+COPY --from=builder /app/node_modules/libsodium-wrappers ./node_modules/libsodium-wrappers
+COPY --from=builder /app/node_modules/@types ./node_modules/@types
+COPY --from=builder /app/node_modules/ws ./node_modules/ws
+COPY --from=builder /app/node_modules/undici ./node_modules/undici
+COPY --from=builder /app/node_modules/prism-media ./node_modules/prism-media
+
 COPY --from=builder /app/healthcheck.js ./healthcheck.js
 COPY --from=builder /app/server.js ./server.js
 
