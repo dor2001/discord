@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "outDir": "./dist/bot",
+    "rootDir": "./bot",
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["bot/**/*"],
+  "exclude": ["node_modules"]
+}

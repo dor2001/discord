@@ -31,3 +31,5 @@ next-env.d.ts
 # Bot data
 /data
 cookies.txt
+
+/dist

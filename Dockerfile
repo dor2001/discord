@@ -40,7 +40,6 @@ ENV DASHBOARD_ORIGIN=${DASHBOARD_ORIGIN}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build Next.js app
 RUN npm run build
 
 # Production stage
@@ -57,7 +56,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/bot ./bot
+COPY --from=builder /app/dist/bot ./dist/bot
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/healthcheck.js ./healthcheck.js

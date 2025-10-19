@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Play, Pause, SkipForward, Square, Volume2, Repeat, Repeat1, Shuffle } from "lucide-react"
 
 interface MusicPlayerProps {
@@ -16,19 +17,60 @@ interface MusicPlayerProps {
 
 export function MusicPlayer({ guildId, guildData, mutate }: MusicPlayerProps) {
   const [volume, setVolume] = useState(100)
+  const [channels, setChannels] = useState<any[]>([])
+  const [selectedChannel, setSelectedChannel] = useState<string>("")
+  const [seekPosition, setSeekPosition] = useState(0)
+  const [isSeeking, setIsSeeking] = useState(false)
 
   const player = guildData?.player
   const guild = guildData?.guild
   const isConnected = !!guild?.voiceChannelId
+  const currentTrack = player?.currentTrack
+
+  useEffect(() => {
+    const fetchChannels = async () => {
+      try {
+        const res = await fetch(`/api/bot/guilds/${guildId}/channels`)
+        if (res.ok) {
+          const data = await res.json()
+          setChannels(data.channels || [])
+        }
+      } catch (error) {
+        console.error("Failed to fetch channels:", error)
+      }
+    }
+    fetchChannels()
+  }, [guildId])
+
+  useEffect(() => {
+    if (currentTrack && !isSeeking) {
+      setSeekPosition(currentTrack.position || 0)
+    }
+  }, [currentTrack, isSeeking])
+
+  useEffect(() => {
+    if (!player?.isPlaying || player?.isPaused || isSeeking) return
+
+    const interval = setInterval(() => {
+      setSeekPosition((prev) => {
+        const newPos = prev + 1
+        return newPos <= (currentTrack?.track?.duration || 0) ? newPos : prev
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [player?.isPlaying, player?.isPaused, currentTrack, isSeeking])
 
   const handleJoinVoice = async () => {
-    const channelId = prompt("הכנס Voice Channel ID:")
-    if (!channelId) return
+    if (!selectedChannel) {
+      alert("בחר ערוץ קולי קודם")
+      return
+    }
 
     await fetch(`/api/bot/guilds/${guildId}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelId }),
+      body: JSON.stringify({ channelId: selectedChannel }),
     })
     mutate()
   }
@@ -68,6 +110,22 @@ export function MusicPlayer({ guildId, guildData, mutate }: MusicPlayerProps) {
     })
   }
 
+  const handleSeekChange = (value: number[]) => {
+    setIsSeeking(true)
+    setSeekPosition(value[0])
+  }
+
+  const handleSeekCommit = async (value: number[]) => {
+    const position = value[0]
+    setIsSeeking(false)
+    await fetch(`/api/bot/guilds/${guildId}/seek`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ position }),
+    })
+    mutate()
+  }
+
   const handleLoopToggle = async () => {
     const modes = ["off", "track", "queue"]
     const currentIndex = modes.indexOf(player?.loopMode || "off")
@@ -99,6 +157,12 @@ export function MusicPlayer({ guildId, guildData, mutate }: MusicPlayerProps) {
     mutate()
   }
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -107,9 +171,26 @@ export function MusicPlayer({ guildId, guildData, mutate }: MusicPlayerProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         {!isConnected ? (
-          <Button onClick={handleJoinVoice} className="w-full">
-            התחבר לערוץ קולי
-          </Button>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="channel-select">בחר ערוץ קולי</Label>
+              <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                <SelectTrigger id="channel-select">
+                  <SelectValue placeholder="בחר ערוץ..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {channels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      {channel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleJoinVoice} className="w-full" disabled={!selectedChannel}>
+              התחבר לערוץ קולי
+            </Button>
+          </div>
         ) : (
           <>
             <div className="flex items-center justify-between">
@@ -126,19 +207,34 @@ export function MusicPlayer({ guildId, guildData, mutate }: MusicPlayerProps) {
               </div>
             </div>
 
-            {player?.currentTrack && (
-              <div className="rounded-lg bg-muted p-4">
+            {currentTrack && (
+              <div className="rounded-lg bg-muted p-4 space-y-4">
                 <div className="flex gap-4">
-                  {player.currentTrack.track.thumbnail && (
+                  {currentTrack.track.thumbnail && (
                     <img
-                      src={player.currentTrack.track.thumbnail || "/placeholder.svg"}
-                      alt={player.currentTrack.track.title}
+                      src={currentTrack.track.thumbnail || "/placeholder.svg"}
+                      alt={currentTrack.track.title}
                       className="h-20 w-20 rounded object-cover"
                     />
                   )}
                   <div className="flex-1">
-                    <h3 className="font-semibold text-balance">{player.currentTrack.track.title}</h3>
-                    <p className="text-sm text-muted-foreground">{player.currentTrack.track.author}</p>
+                    <h3 className="font-semibold text-balance">{currentTrack.track.title}</h3>
+                    <p className="text-sm text-muted-foreground">{currentTrack.track.author}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Slider
+                    value={[seekPosition]}
+                    onValueChange={handleSeekChange}
+                    onValueCommit={handleSeekCommit}
+                    max={currentTrack.track.duration || 100}
+                    step={1}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{formatTime(seekPosition)}</span>
+                    <span>{formatTime(currentTrack.track.duration || 0)}</span>
                   </div>
                 </div>
               </div>

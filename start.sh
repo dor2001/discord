@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# Start the Discord bot in the background
-node --import tsx bot/start.ts &
+node dist/bot/start.js &
 
 # Wait a bit for the bot to initialize
 sleep 5
