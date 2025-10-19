@@ -14,7 +14,7 @@ async function startServer() {
   try {
     console.log("[v0] Starting Discord bot...")
 
-    const botProcess = spawn("npx", ["tsx", "bot/start.ts"], {
+    const botProcess = spawn("node", ["dist/bot/bot/start.js"], {
       stdio: "inherit",
       env: process.env,
     })

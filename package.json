@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
+    "build": "next build && npm run build:bot",
+    "build:bot": "tsc -p tsconfig.bot.json",
     "dev": "concurrently \"npm run dev:bot\" \"npm run dev:next\"",
     "dev:bot": "tsx watch bot/start.ts",
     "dev:next": "next dev",
