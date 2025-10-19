@@ -1,151 +1,98 @@
-import express from 'express';
-import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import cors from 'cors';
-import { CONFIG } from '../config.js';
+import express from "express";
+import http from "http";
+import { Server as IOServer } from "socket.io";
+import cors from "cors";
+import bodyParser from "body-parser";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { CONFIG } from "../config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let __server;
-export function startWeb(client, music, port){
-  if (__server) return __server;
+let __serverRef = null;
+let __ioRef = null;
+
+export function startWeb(client, music, port=3000){
+  if (__serverRef) return __serverRef;
+
   const app = express();
+  app.use(cors({ origin: CONFIG.dashboardOrigin, credentials: true }));
+  app.use(bodyParser.json());
+  app.use(express.static(path.resolve(__dirname, "../../public")));
+
+  // APIs
+  app.get("/api/guilds", async (req, res)=>{
+    try{
+      const guilds = await client.guilds.fetch();
+      const list = [];
+      for (const [id, g] of guilds){
+        const gfull = await g.fetch();
+        list.push({ id, name: gfull.name, icon: gfull.icon, voiceStates: gfull.voiceStates?.cache?.size || 0 });
+      }
+      res.json(list);
+    }catch(e){ console.error(e); res.status(500).json({error:e.message}); }
+  });
+
+  app.get("/api/guilds/:gid/channels", async (req, res)=>{
+    try{
+      const g = await client.guilds.fetch(req.params.gid);
+      const channels = await g.channels.fetch();
+      const out = Array.from(channels.values()).map(c=>({ id: c.id, name: c.name, type: c.type }));
+      res.json(out);
+    }catch(e){ console.error(e); res.status(500).json({error:e.message}); }
+  });
+
+  app.get("/api/guilds/:gid/state", (req,res)=>{
+    res.json(music.getState(req.params.gid));
+  });
+
+  app.post("/api/guilds/:gid/play", async (req,res)=>{
+    const { voiceChannelId, query } = req.body || {};
+    try{
+      const state = await music.play(req.params.gid, voiceChannelId, query);
+      res.json(state);
+    }catch(e){ res.status(500).json({error:e.message}); }
+  });
+
+  app.post("/api/guilds/:gid/pause", (req,res)=>{ music.pause(req.params.gid); res.json({ok:true}); });
+  app.post("/api/guilds/:gid/resume", (req,res)=>{ music.resume(req.params.gid); res.json({ok:true}); });
+  app.post("/api/guilds/:gid/seek", (req,res)=>{ const { seconds } = req.body||{}; music.seek(req.params.gid, Number(seconds||0)); res.json({ok:true}); });
+  app.post("/api/guilds/:gid/skip", (req,res)=>{ music.skip(req.params.gid); res.json({ok:true}); });
+  app.post("/api/guilds/:gid/back", (req,res)=>{ music.back(req.params.gid); res.json({ok:true}); });
+  app.post("/api/guilds/:gid/stop", (req,res)=>{ music.stop(req.params.gid); res.json({ok:true}); });
+  app.post("/api/guilds/:gid/volume", (req,res)=>{ const { volume }=req.body||{}; music.setVolume(req.params.gid, Number(volume||1)); res.json({ok:true}); });
+
+  app.get("/", (req,res)=>{
+    res.sendFile(path.resolve(__dirname, "../../public/index.html"));
+  });
+
   const server = http.createServer(app);
-  const io = new SocketIOServer(server, {
-    cors: { origin: '*', methods: ['GET','POST'] }
-  });
+  const io = new IOServer(server, { cors: { origin: CONFIG.dashboardOrigin, methods: ["GET","POST"] } });
+  __ioRef = io;
 
-  app.use(cors());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
-  app.use(express.static(path.join(__dirname, '../../public')));
-
-  // API
-  app.get('/api/guilds', async (req,res)=>{
-    try { const list = await music.listGuilds(); res.json(list); } catch(e) { res.status(500).json({error:e.message}); }
-  });
-
-  app.get('/api/guilds/:id/channels', async (req,res)=>{
-    try { const list = await music.listChannels(req.params.id); res.json(list); } catch(e) { res.status(500).json({error:e.message}); }
-  });
-
-  app.post('/api/:guildId/join', async (req,res)=>{
-    try{
-      const { voiceChannelId, textChannelId } = req.body;
-      const gp = music.getOrCreate(req.params.guildId);
-      await gp.join(voiceChannelId);
-      if (textChannelId) gp.setTextChannel(textChannelId);
-      res.json(gp.getState());
-      io.to(req.params.guildId).emit('state', gp.getState());
-    } catch(e){
-      res.status(400).json({ error: e.message });
-    }
-  });
-
-  app.post('/api/:guildId/play', async (req,res)=>{
-    try{
-      const { query } = req.body;
-      const gp = music.getOrCreate(req.params.guildId);
-      const st = await gp.play(query, 'web');
-      res.json(st);
-      io.to(req.params.guildId).emit('state', gp.getState());
-    } catch(e){
-      res.status(400).json({ error: e.message });
-    }
-  });
-
-  app.post('/api/:guildId/pause', (req,res)=>{
-    const gp = music.getOrCreate(req.params.guildId);
-    res.json(gp.pause());
-    io.to(req.params.guildId).emit('state', gp.getState());
-  });
-
-  app.post('/api/:guildId/resume', (req,res)=>{
-    const gp = music.getOrCreate(req.params.guildId);
-    res.json(gp.resume());
-    io.to(req.params.guildId).emit('state', gp.getState());
-  });
-
-  app.post('/api/:guildId/skip', (req,res)=>{
-    const gp = music.getOrCreate(req.params.guildId);
-    res.json(gp.skip());
-    io.to(req.params.guildId).emit('state', gp.getState());
-  });
-
-  app.post('/api/:guildId/stop', (req,res)=>{
-    const gp = music.getOrCreate(req.params.guildId);
-    res.json(gp.stop());
-    io.to(req.params.guildId).emit('state', gp.getState());
-  });
-
-  app.post('/api/:guildId/seek', async (req,res)=>{
-    try{
-      const { seconds } = req.body;
-      const gp = music.getOrCreate(req.params.guildId);
-      const st = await gp.seekAbsolute(Number(seconds || 0));
-      res.json(st);
-      io.to(req.params.guildId).emit('state', gp.getState());
-    } catch(e){
-      res.status(400).json({ error: e.message });
-    }
-  });
-
-  app.post('/api/:guildId/forward', async (req,res)=>{
-    try{
-      const { by = 10 } = req.body;
-      const gp = music.getOrCreate(req.params.guildId);
-      const st = await gp.seekRelative(Number(by));
-      res.json(st);
-      io.to(req.params.guildId).emit('state', gp.getState());
-    } catch(e){
-      res.status(400).json({ error: e.message });
-    }
-  });
-
-  app.post('/api/:guildId/backward', async (req,res)=>{
-    try{
-      const { by = 10 } = req.body;
-      const gp = music.getOrCreate(req.params.guildId);
-      const st = await gp.seekRelative(-Number(by));
-      res.json(st);
-      io.to(req.params.guildId).emit('state', gp.getState());
-    } catch(e){
-      res.status(400).json({ error: e.message });
-    }
-  });
-
-  app.post('/api/:guildId/volume', (req,res)=>{
-    const gp = music.getOrCreate(req.params.guildId);
-    const { volume } = req.body;
-    res.json(gp.setVolume(Number(volume)));
-    io.to(req.params.guildId).emit('state', gp.getState());
-  });
-
-  app.get('/api/:guildId/state', (req,res)=>{
-    const gp = music.getOrCreate(req.params.guildId);
-    res.json(gp.getState());
-  });
-
-  // Sockets
-  io.on('connection', (socket)=>{
-    let guildId = null;
-    socket.on('subscribe', (gid)=>{
-      guildId = gid;
-      socket.join(gid);
-      const gp = music.getOrCreate(gid);
-      socket.emit('state', gp.getState());
-    });
-    socket.on('disconnect', ()=>{
-      if (guildId){ socket.leave(guildId); }
+  io.on("connection", (socket)=>{
+    socket.on("watch", (gid)=>{
+      socket.join("g:"+gid);
+      socket.emit("state", music.getState(gid));
     });
   });
 
-  server.listen(port, ()=>{
+  music.on("update", (gid)=>{
+    io.to("g:"+gid).emit("state", music.getState(gid));
+  });
+
+  server.on("error", (err)=>{
+    if (err.code === "EADDRINUSE") {
+      console.warn(`[web] port ${port} busy; skip second start`);
+      return;
+    }
+    throw err;
+  });
+
+  __serverRef = server.listen(port, "0.0.0.0", ()=>{
     console.log(`Web UI on http://localhost:${port}`);
   });
 
-  return server;
+  return __serverRef;
 }

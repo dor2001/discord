@@ -1,290 +1,153 @@
-
 <!doctype html>
-<html lang="he">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DOR Music — Discord Controller</title>
-  <style>
-    :root{
-      --bg:#0b0b0f; --panel:#15151b; --muted:#a7a7a7; --text:#f3f4f6; --accent:#1db954;
-      --border:#23232b;
-    }
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{ margin:0; background:var(--bg); color:var(--text); font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
-    .layout{ display:grid; grid-template-columns: 280px 1fr; grid-template-rows: 1fr 88px; height:100vh; }
-    .sidebar{ background:#0e0e13; border-right:1px solid var(--border); padding:16px; overflow:auto; }
-    .main{ background:linear-gradient(180deg,#1b1b24 0%, #0e0e13 300px); padding:24px; overflow:auto; }
-    .player{ grid-column:1 / span 2; background:var(--panel); border-top:1px solid var(--border); display:flex; align-items:center; gap:16px; padding:12px 16px; }
-    h2{ margin:8px 0 16px; font-size:16px; opacity:.9; }
-    .guild-list{ display:flex; flex-direction:column; gap:8px; }
-    .guild{ display:flex; align-items:center; gap:10px; padding:8px; border-radius:10px; cursor:pointer; border:1px solid transparent; }
-    .guild:hover{ background:#14141b; border-color:#1f1f27; }
-    .guild.active{ background:#14141b; border-color:var(--accent); }
-    .guild img{ width:28px; height:28px; border-radius:50%; }
-    .muted{ color:var(--muted); font-size:12px; }
-    .row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .panel{ background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px; }
-    .controls{ display:flex; align-items:center; gap:10px; justify-content:center; }
-    button{ background:#22222a; color:var(--text); border:1px solid #2a2a36; border-radius:20px; padding:8px 12px; cursor:pointer; }
-    button.primary{ background:var(--accent); color:black; border:none; }
-    button.ghost{ background:transparent; border-color:transparent; }
-    input[type="text"], select, input[type="number"]{ background:#0d0d12; border:1px solid #242433; color:var(--text); padding:10px 12px; border-radius:10px; }
-    input[type="range"]{ width:100%; }
-    .grid{ display:grid; grid-template-columns: 1fr 360px; gap:16px; }
-    .queue{ display:grid; gap:8px; }
-    .track{ display:flex; align-items:center; gap:12px; padding:10px; border-radius:12px; border:1px solid #20202a; }
-    .cover{ width:48px; height:48px; background:#111; border-radius:8px; object-fit:cover; }
-    .cover-big{ width:72px; height:72px; border-radius:8px; object-fit:cover; }
-    .title{ font-weight:600; }
-    .seek{ display:grid; gap:6px; }
-    .seek .times{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); }
-  </style>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
-</head>
-<body dir="rtl">
-  <div class="layout">
-    <aside class="sidebar">
-      <h2>השרתים שלי</h2>
-      <div id="guilds" class="guild-list"></div>
-    </aside>
-
-    <main class="main">
-      <div class="grid">
-        <div class="panel">
-          <h2>ערוצים וניגון</h2>
-          <div class="row">
-            <select id="voice"></select>
-            <select id="text"><option value="">— Text Channel (לא חובה) —</option></select>
-            <button id="join" class="primary">חבר ל-Voice</button>
-          </div>
-
-          <div class="row" style="margin-top:12px;">
-            <input id="query" placeholder="הדבק לינק YouTube או כתוב שם שיר / אמן" style="flex:1;">
-            <button id="play" class="primary">נגן</button>
-          </div>
-
-          <div class="panel" style="margin-top:12px;">
-            <div class="controls">
-              <button id="back10">« 10s</button>
-              <button id="pause">⏸</button>
-              <button id="resume">▶</button>
-              <button id="skip">⏭</button>
-              <button id="stop">⏹</button>
-              <div class="row" style="margin-inline-start:12px;">
-                <span class="muted">ווליום</span>
-                <input type="range" id="volume" min="0" max="100" value="80" style="width:160px;">
-              </div>
-            </div>
-          </div>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Music Dashboard</title>
+    <style>
+      body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#121212;color:#fff}
+      header{padding:16px;display:flex;align-items:center;gap:12px;background:#181818;border-bottom:1px solid #2a2a2a}
+      .container{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 64px)}
+      aside{background:#181818;border-inline-end:1px solid #2a2a2a;padding:12px;overflow:auto}
+      main{padding:16px}
+      .guild{padding:8px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:8px}
+      .guild:hover{background:#222}
+      .row{display:flex;gap:8px;align-items:center;margin:8px 0}
+      .controls button{background:#1db954;border:none;padding:8px 12px;border-radius:20px;color:#000;font-weight:bold;cursor:pointer}
+      .controls button.secondary{background:#2a2a2a;color:#fff;font-weight:normal}
+      input,select{background:#2a2a2a;color:#fff;border:1px solid #333;border-radius:8px;padding:8px}
+      .seek{width:100%}
+      footer{position:fixed;left:0;right:0;bottom:0;background:#181818;border-top:1px solid #2a2a2a;padding:8px 16px;display:flex;align-items:center;gap:12px}
+      .track{flex:1}
+      .time{min-width:80px;text-align:center}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h3>🎵 DOR Music</h3>
+      <span id="status"></span>
+    </header>
+    <div class="container">
+      <aside>
+        <h4>שרתים</h4>
+        <div id="guilds"></div>
+      </aside>
+      <main>
+        <div class="row">
+          <label>ערוץ קול:</label>
+          <select id="voice"></select>
         </div>
-
-        <div class="panel">
-          <h2>מתנגן עכשיו</h2>
-          <div class="row">
-            <img id="cover" class="cover-big" src="" alt="cover" />
-            <div>
-              <div id="npTitle" class="title">—</div>
-              <div id="npStatus" class="muted">—</div>
-            </div>
-          </div>
-          <div class="seek" style="margin-top:12px;">
-            <input type="range" id="position" min="0" max="0" value="0">
-            <div class="times"><span id="posTime">0:00</span><span id="durTime">0:00</span></div>
-            <div class="row">
-              <input type="number" id="absSeconds" placeholder="שניות" min="0" style="width:120px;">
-              <button id="seekBtn">Seek</button>
-              <button id="fwd10">10s »</button>
-            </div>
-          </div>
+        <div class="row">
+          <input id="query" placeholder="שם שיר או לינק YouTube" style="flex:1"/>
+          <button id="play">נגן</button>
         </div>
-      </div>
-
-      <div class="panel" style="margin-top:16px;">
-        <h2>תור</h2>
-        <div id="queue" class="queue"></div>
-      </div>
-    </main>
-
-    <footer class="player">
-      <img id="coverMini" class="cover" src="" alt="cover">
-      <div style="min-width:0;">
-        <div id="miniTitle" class="title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">—</div>
-        <div id="miniStatus" class="muted">—</div>
-      </div>
+        <div class="controls row">
+          <button id="back" class="secondary">⟲ 10s</button>
+          <button id="pause" class="secondary">⏸️</button>
+          <button id="resume" class="secondary">▶️</button>
+          <button id="skip" class="secondary">⏭️</button>
+          <button id="stop" class="secondary">⏹️</button>
+          <label>עוצמה <input id="vol" type="range" min="0" max="200" value="100"/></label>
+        </div>
+        <div class="row">
+          <div class="time" id="tcur">0:00</div>
+          <input id="seek" class="seek" type="range" min="0" max="0" value="0"/>
+          <div class="time" id="tmax">0:00</div>
+        </div>
+        <div id="now"></div>
+      </main>
+    </div>
+    <footer>
+      <div class="track" id="track">אין ניגון</div>
     </footer>
-  </div>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+      const $ = (s)=>document.querySelector(s);
+      const api = (p, opt={})=>fetch(p, {headers:{'Content-Type':'application/json'}, ...opt}).then(r=>r.json());
+      let gid=null, state={}, dragging=false;
 
-  <script>
-    const api = (path, options={}) => fetch(path, { 
-      method: options.method || 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      body: options.body ? JSON.stringify(options.body) : undefined
-    }).then(r => r.json());
+      function fmt(s){ s=Math.max(0,Math.floor(s)); const m=String(Math.floor(s/60)).padStart(1,'0'); const ss=String(s%60).padStart(2,'0'); return m+':'+ss; }
 
-    const guildsDiv = document.getElementById('guilds');
-    const voiceSel  = document.getElementById('voice');
-    const textSel   = document.getElementById('text');
-    const queryInp  = document.getElementById('query');
-    const volume    = document.getElementById('volume');
-    const position  = document.getElementById('position');
-    const absSeconds= document.getElementById('absSeconds');
-
-    const cover     = document.getElementById('cover');
-    const coverMini = document.getElementById('coverMini');
-    const npTitle   = document.getElementById('npTitle');
-    const npStatus  = document.getElementById('npStatus');
-    const posTime   = document.getElementById('posTime');
-    const durTime   = document.getElementById('durTime');
-    const miniTitle = document.getElementById('miniTitle');
-    const miniStatus= document.getElementById('miniStatus');
-    const queueDiv  = document.getElementById('queue');
-
-    let socket = null;
-    let currentGuild = null;
-    let lastState = null;
-
-    function secToTime(sec){
-      sec = Math.max(0, Math.floor(sec||0));
-      const m = Math.floor(sec/60);
-      const s = sec%60;
-      return m + ':' + String(s).padStart(2,'0');
-    }
-
-    function setActiveGuild(gid){
-      Array.from(document.querySelectorAll('.guild')).forEach(el => el.classList.toggle('active', el.dataset.id === gid));
-    }
-
-    function renderGuilds(list){
-      guildsDiv.innerHTML = list.map(g => \`
-        <div class="guild" data-id="\${g.id}">
-          <img src="\${g.icon || ''}" onerror="this.style.display='none';">
-          <div>\${g.name}</div>
-        </div>\`
-      ).join('');
-      Array.from(document.querySelectorAll('.guild')).forEach(el => {
-        el.onclick = async () => {
-          currentGuild = el.dataset.id;
-          setActiveGuild(currentGuild);
-          await loadChannels();
-          subscribe(currentGuild);
-        };
-      });
-      if (list.length && !currentGuild){
-        currentGuild = list[0].id;
-        setActiveGuild(currentGuild);
-        loadChannels();
-        subscribe(currentGuild);
+      async function loadGuilds(){
+        const arr = await api('/api/guilds');
+        const box = $('#guilds'); box.innerHTML='';
+        arr.forEach(g=>{
+          const div = document.createElement('div');
+          div.className='guild';
+          div.textContent=g.name;
+          div.onclick=()=>selectGuild(g.id);
+          box.appendChild(div);
+        });
+        if (arr[0]) selectGuild(arr[0].id);
       }
-    }
+      async function selectGuild(id){
+        gid=id;
+        $('#status').textContent='שרת: '+id;
+        const ch = await api('/api/guilds/'+gid+'/channels');
+        const voice = ch.filter(c=>c.type===2 || c.type===13); // GUILD_VOICE or STAGE
+        const sel = $('#voice'); sel.innerHTML='';
+        voice.forEach(v=>{ const o=document.createElement('option'); o.value=v.id; o.textContent=v.name; sel.appendChild(o); });
+        connectSocket();
+        refreshState();
+      }
 
-    function renderState(st){
-      lastState = st;
-      // Volume
-      volume.value = Math.round((st.volume || 0) * 100);
-      // Now playing
-      const total = (st.nowPlaying && st.nowPlaying.durationInSec) || 0;
-      const pos   = (st.nowPlaying && st.nowPlaying.positionInSec) || 0;
-      position.max = total || 0;
-      position.value = pos || 0;
-      posTime.textContent = secToTime(pos);
-      durTime.textContent = secToTime(total);
+      let socket=null;
+      function connectSocket(){
+        if (socket) socket.disconnect();
+        socket = io();
+        socket.on('connect', ()=>{ socket.emit('watch', gid); });
+        socket.on('state', (s)=>{ state=s; render(); });
+      }
 
-      const title = st.nowPlaying ? st.nowPlaying.title : '—';
-      const stat  = st.playerStatus || '—';
-      const thumb = (st.nowPlaying && st.nowPlaying.thumbnail) || '';
+      async function refreshState(){
+        state = await api('/api/guilds/'+gid+'/state');
+        render();
+      }
 
-      npTitle.textContent = title;
-      npStatus.textContent = stat + (total ? \`  •  \${secToTime(pos)} / \${secToTime(total)}\` : '');
-      miniTitle.textContent = title;
-      miniStatus.textContent = npStatus.textContent;
-      cover.src = thumb || '';
-      coverMini.src = thumb || '';
+      function render(){
+        $('#track').textContent = state.current ? (state.current.title || 'מנגן') : 'אין ניגון';
+        $('#now').textContent = state.current ? 'מנגן: '+(state.current.title||'') : '';
+        $('#vol').value = Math.round((state.volume||1)*100);
+        $('#seek').max = state.current?.duration || (state.position||0)+600;
+        if (!dragging) $('#seek').value = state.position||0;
+        $('#tcur').textContent = fmt(state.position||0);
+        $('#tmax').textContent = fmt(state.current?.duration || $('#seek').max);
+      }
 
-      // Queue
-      queueDiv.innerHTML = (st.queue || []).map(item => \`
-        <div class="track">
-          <img class="cover" src="" alt="">
-          <div>
-            <div class="title">\${item.title}</div>
-            <div class="muted">\${secToTime(item.durationInSec)}</div>
-          </div>
-        </div>\`
-      ).join('');
+      setInterval(()=>{
+        if (state.current && !dragging){
+          state.position = (state.position||0)+1;
+          $('#seek').value = state.position;
+          $('#tcur').textContent = fmt(state.position);
+        }
+      },1000);
 
-      // Channels may be chosen previously
-    }
+      $('#play').onclick = async ()=>{
+        const vc = $('#voice').value;
+        const q = $('#query').value;
+        if (!gid || !vc || !q) return;
+        await api('/api/guilds/'+gid+'/play', { method:'POST', body: JSON.stringify({ voiceChannelId: vc, query: q }) });
+        refreshState();
+      };
+      $('#pause').onclick = async ()=>{ await api('/api/guilds/'+gid+'/pause', {method:'POST'}); refreshState(); };
+      $('#resume').onclick = async ()=>{ await api('/api/guilds/'+gid+'/resume', {method:'POST'}); refreshState(); };
+      $('#skip').onclick = async ()=>{ await api('/api/guilds/'+gid+'/skip', {method:'POST'}); refreshState(); };
+      $('#stop').onclick = async ()=>{ await api('/api/guilds/'+gid+'/stop', {method:'POST'}); refreshState(); };
+      $('#back').onclick = async ()=>{ const newt = Math.max(0,(state.position||0)-10); await api('/api/guilds/'+gid+'/seek',{method:'POST', body: JSON.stringify({seconds:newt})}); refreshState(); };
 
-    async function loadGuilds(){
-      const list = await api('/api/guilds');
-      renderGuilds(list);
-    }
+      $('#vol').oninput = async (e)=>{
+        const v = Number(e.target.value)/100;
+        await api('/api/guilds/'+gid+'/volume',{method:'POST', body: JSON.stringify({volume: v})});
+      };
 
-    async function loadChannels(){
-      if (!currentGuild) return;
-      const data = await api('/api/guilds/' + currentGuild + '/channels');
-      voiceSel.innerHTML = data.voice.map(c => \`<option value="\${c.id}">\${c.name}</option>\`).join('');
-      textSel.innerHTML  = ['<option value="">— Text Channel (לא חובה) —</option>']
-         .concat(data.text.map(c => \`<option value="\${c.id}">\${c.name}</option>\`)).join('');
-    }
+      const seek = $('#seek');
+      seek.addEventListener('mousedown', ()=>dragging=true);
+      seek.addEventListener('touchstart', ()=>dragging=true);
+      seek.addEventListener('mouseup', async ()=>{ dragging=false; const v=Number(seek.value); await api('/api/guilds/'+gid+'/seek', {method:'POST', body: JSON.stringify({seconds:v})}); });
+      seek.addEventListener('touchend', async ()=>{ dragging=false; const v=Number(seek.value); await api('/api/guilds/'+gid+'/seek', {method:'POST', body: JSON.stringify({seconds:v})}); });
+      seek.addEventListener('input', ()=>{ $('#tcur').textContent = fmt(Number(seek.value)); });
 
-    function subscribe(gid){
-      if (socket){ socket.disconnect(); }
-      socket = io();
-      socket.on('connect', ()=> socket.emit('subscribe', gid));
-      socket.on('state', (st)=> renderState(st));
-    }
-
-    document.getElementById('join').onclick = async ()=>{
-      if (!currentGuild) return;
-      await api('/api/' + currentGuild + '/join', { method: 'POST', body: { 
-        voiceChannelId: voiceSel.value,
-        textChannelId: textSel.value || null
-      }});
-      renderState(await api('/api/' + currentGuild + '/state'));
-    };
-
-    document.getElementById('play').onclick = async ()=>{
-      if (!currentGuild) return;
-      await api('/api/' + currentGuild + '/play', { method: 'POST', body: { query: queryInp.value }});
-      renderState(await api('/api/' + currentGuild + '/state'));
-    };
-    document.getElementById('pause').onclick  = async ()=>{
-      await api('/api/' + currentGuild + '/pause', { method: 'POST' });
-      renderState(await api('/api/' + currentGuild + '/state'));
-    };
-    document.getElementById('resume').onclick = async ()=>{
-      await api('/api/' + currentGuild + '/resume', { method: 'POST' });
-      renderState(await api('/api/' + currentGuild + '/state'));
-    };
-    document.getElementById('skip').onclick   = async ()=>{
-      await api('/api/' + currentGuild + '/skip', { method: 'POST' });
-      renderState(await api('/api/' + currentGuild + '/state'));
-    };
-    document.getElementById('stop').onclick   = async ()=>{
-      await api('/api/' + currentGuild + '/stop', { method: 'POST' });
-      renderState(await api('/api/' + currentGuild + '/state'));
-    };
-    document.getElementById('back10').onclick = async ()=>{
-      await api('/api/' + currentGuild + '/backward', { method: 'POST', body: { by: 10 }});
-      renderState(await api('/api/' + currentGuild + '/state'));
-    };
-    document.getElementById('fwd10').onclick = async ()=>{
-      await api('/api/' + currentGuild + '/forward', { method: 'POST', body: { by: 10 }});
-      renderState(await api('/api/' + currentGuild + '/state'));
-    };
-    document.getElementById('seekBtn').onclick = async ()=>{
-      const sec = Number(absSeconds.value || 0);
-      await api('/api/' + currentGuild + '/seek', { method: 'POST', body: { seconds: sec }});
-      renderState(await api('/api/' + currentGuild + '/state'));
-    };
-    position.addEventListener('change', async ()=>{
-      const sec = Number(position.value || 0);
-      await api('/api/' + currentGuild + '/seek', { method: 'POST', body: { seconds: sec }});
-    });
-
-    loadGuilds();
-  </script>
-</body>
+      loadGuilds();
+    </script>
+  </body>
 </html>

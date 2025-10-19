@@ -1,93 +1,80 @@
-import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ChannelType } from 'discord.js';
-import { MusicManager } from './music/MusicManager.js';
-import { CONFIG } from './config.js';
-import { startWeb } from './web/server.js';
+import { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder } from "discord.js";
+import { CONFIG } from "./config.js";
+import { MusicManager } from "./music/MusicManager.js";
+import { startWeb } from "./web/server.js";
+
+if (!CONFIG.token) {
+  console.error("Missing DISCORD_TOKEN");
+  process.exit(1);
+}
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    GatewayIntentBits.GuildMessages
+  ],
+  partials: [Partials.Channel]
 });
 
 const music = new MusicManager(client);
 
-// Simple slash commands as fallback
-const commands = [
-  new SlashCommandBuilder().setName('join').setDescription('Join a voice channel')
-    .addChannelOption(opt => opt.setName('channel').setDescription('Voice channel').addChannelTypes(ChannelType.GuildVoice).setRequired(true)),
-  new SlashCommandBuilder().setName('play').setDescription('Play a song or URL')
-    .addStringOption(opt => opt.setName('query').setDescription('YouTube URL or search').setRequired(true)),
-  new SlashCommandBuilder().setName('pause').setDescription('Pause current'),
-  new SlashCommandBuilder().setName('resume').setDescription('Resume'),
-  new SlashCommandBuilder().setName('skip').setDescription('Skip'),
-  new SlashCommandBuilder().setName('seek').setDescription('Seek to seconds')
-    .addIntegerOption(opt => opt.setName('seconds').setDescription('Absolute seconds').setRequired(true)),
-  new SlashCommandBuilder().setName('np').setDescription('Now playing'),
-  new SlashCommandBuilder().setName('leave').setDescription('Leave voice')
-].map(c => c.toJSON());
-
-async function registerCommands(){
-  if (!CONFIG.clientId || !CONFIG.token) return;
-  const rest = new REST({ version: '10' }).setToken(CONFIG.token);
-  await rest.put(Routes.applicationCommands(CONFIG.clientId), { body: commands });
-  console.log('Slash commands registered.');
+async function registerSlash() {
+  try{
+    const commands = [
+      new SlashCommandBuilder().setName("join").setDescription("Join voice").addChannelOption(o=>o.setName("channel").setDescription("Voice channel").setRequired(true)),
+      new SlashCommandBuilder().setName("play").setDescription("Play a song").addStringOption(o=>o.setName("q").setDescription("Query or URL").setRequired(true)).addChannelOption(o=>o.setName("channel").setDescription("Voice channel")),
+      new SlashCommandBuilder().setName("pause").setDescription("Pause"),
+      new SlashCommandBuilder().setName("resume").setDescription("Resume"),
+      new SlashCommandBuilder().setName("seek").setDescription("Seek seconds").addIntegerOption(o=>o.setName("seconds").setDescription("to seconds").setRequired(true)),
+      new SlashCommandBuilder().setName("skip").setDescription("Skip"),
+      new SlashCommandBuilder().setName("stop").setDescription("Stop")
+    ].map(c=>c.toJSON());
+    const rest = new REST({ version: "10" }).setToken(CONFIG.token);
+    await rest.put(Routes.applicationCommands(CONFIG.clientId), { body: commands });
+    console.log("Slash commands registered.");
+  }catch(e){ console.error("Slash reg failed", e); }
 }
 
-const onReady = async () => {
+client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
-  await registerCommands();
-  // Start web dashboard on same process
-  
-if (!globalThis.__WEB_STARTED__) { globalThis.__WEB_STARTED__ = true; startWeb(client, music, CONFIG.port); }
-;
-client.once('ready', onReady);
+  await registerSlash();
+  if (!globalThis.__WEB_STARTED__) {
+    globalThis.__WEB_STARTED__ = true;
+    startWeb(client, music, CONFIG.port);
+  }
+});
 
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-  const guildId = interaction.guildId;
-  const gp = music.getOrCreate(guildId);
-
+client.on("interactionCreate", async (i)=>{
+  if (!i.isChatInputCommand()) return;
+  const gid = i.guildId;
   try{
-    switch(interaction.commandName){
-      case 'join': {
-        const ch = interaction.options.getChannel('channel');
-        await gp.join(ch.id);
-        await interaction.reply({ content: `Joined ${ch.name}`, ephemeral: true });
-        break;
-      }
-      case 'play': {
-        const q = interaction.options.getString('query');
-        await interaction.deferReply();
-        await gp.play(q, interaction.user.username);
-        await interaction.editReply(`Playing: ${gp.current?.info?.title || q}`);
-        break;
-      }
-      case 'pause': await gp.pause(); await interaction.reply({ content: 'Paused', ephemeral: true }); break;
-      case 'resume': await gp.resume(); await interaction.reply({ content: 'Resumed', ephemeral: true }); break;
-      case 'skip': await gp.skip(); await interaction.reply({ content: 'Skipped', ephemeral: true }); break;
-      case 'seek': {
-        const seconds = interaction.options.getInteger('seconds');
-        await gp.seekAbsolute(seconds);
-        await interaction.reply({ content: `Seeked to ${seconds}s`, ephemeral: true });
-        break;
-      }
-      case 'np': {
-        const st = gp.getState();
-        await interaction.reply({ content: st.nowPlaying ? `${st.nowPlaying.title} — ${st.nowPlaying.positionInSec}/${st.nowPlaying.durationInSec}s` : 'Nothing playing' });
-        break;
-      }
-      case 'leave': gp.leave(); await interaction.reply({ content: 'Disconnected', ephemeral: true }); break;
+    if (i.commandName === "join") {
+      const ch = i.options.getChannel("channel", true);
+      await music.join(i.guild, ch.id);
+      await i.reply({ content: "Joined "+ch.name, ephemeral: true });
+    } else if (i.commandName === "play") {
+      const q = i.options.getString("q", true);
+      const ch = i.options.getChannel("channel") || i.member.voice.channel;
+      if (!ch) return i.reply({content:"בחר ערוץ voice", ephemeral:true});
+      await music.play(gid, ch.id, q);
+      await i.reply({ content: "Playing: "+q, ephemeral: true });
+    } else if (i.commandName === "pause") {
+      music.pause(gid); await i.reply({ content: "⏸️", ephemeral: true });
+    } else if (i.commandName === "resume") {
+      music.resume(gid); await i.reply({ content: "▶️", ephemeral: true });
+    } else if (i.commandName === "seek") {
+      const s = i.options.getInteger("seconds", true);
+      music.seek(gid, s); await i.reply({ content: `⏩ ${s}s`, ephemeral: true });
+    } else if (i.commandName === "skip") {
+      music.skip(gid); await i.reply({ content: "⏭️", ephemeral: true });
+    } else if (i.commandName === "stop") {
+      music.stop(gid); await i.reply({ content: "⏹️", ephemeral: true });
     }
-  } catch(e){
+  } catch (e) {
     console.error(e);
-    if (interaction.deferred || interaction.replied){
-      await interaction.editReply(`❌ ${e.message}`);
-    } else {
-      await interaction.reply({ content: `❌ ${e.message}`, ephemeral: true });
-    }
+    if (i.deferred || i.replied) await i.followUp({ content: "❌ "+e.message, ephemeral: true });
+    else await i.reply({ content: "❌ "+e.message, ephemeral: true });
   }
 });
 
