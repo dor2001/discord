@@ -59,6 +59,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/bot ./bot
 COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/node_modules ./node_modules
 
 # Create data directory for cookies and persistent data
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
@@ -76,5 +77,4 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/bot/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start both Next.js and Discord bot
-CMD ["sh", "-c", "node bot/start.js & node server.js"]
+CMD ["sh", "-c", "node --import tsx bot/start.ts & node server.js"]
