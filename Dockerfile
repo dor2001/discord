@@ -1,6 +1,6 @@
 FROM node:22-alpine AS base
 
-RUN apk add --no-cache python3 py3-pip ffmpeg libsodium-dev && \
+RUN apk add --no-cache python3 py3-pip ffmpeg libsodium-dev curl && \
     python3 -m pip install --no-cache-dir --break-system-packages yt-dlp && \
     rm -rf /var/cache/apk/* /tmp/* /root/.cache /root/.npm
 
@@ -67,5 +67,8 @@ EXPOSE 3000 3001
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3000/api/bot/health || exit 1
 
 CMD ["node", "server.js"]
