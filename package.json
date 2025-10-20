@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@discordjs/voice": "latest",
+    "@distube/ytdl-core": "latest",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-scroll-area": "^1.2.2",
     "@radix-ui/react-select": "^2.1.4",
@@ -34,7 +35,6 @@
     "next": "15.2.4",
     "opusscript": "^0.1.1",
     "path": "latest",
-    "play-dl": "latest",
     "react": "^19",
     "react-dom": "^19",
     "swr": "latest",
