@@ -8,7 +8,6 @@ import {
   type PlayerSubscription,
 } from "@discordjs/voice"
 import { spawn } from "child_process"
-import { config } from "./config.js"
 import { botEventEmitter } from "../lib/event-emitter.js"
 
 export interface Track {
@@ -102,7 +101,16 @@ export class MusicPlayer {
       this.currentPosition = 0
       this.startTime = Date.now()
 
-      const ytdlp = spawn("yt-dlp", ["-f", "bestaudio", "-o", "-", "--cookies", config.cookiesPath, track.url])
+      const ytdlp = spawn("yt-dlp", [
+        "-f",
+        "bestaudio",
+        "-o",
+        "-",
+        "--extractor-args",
+        "youtube:player_client=android",
+        "--no-check-certificate",
+        track.url,
+      ])
 
       const ffmpeg = spawn("ffmpeg", [
         "-i",
@@ -235,7 +243,16 @@ export class MusicPlayer {
     try {
       console.log("[v0] Seeking to:", seconds, "seconds")
 
-      const ytdlp = spawn("yt-dlp", ["-f", "bestaudio", "-o", "-", "--cookies", config.cookiesPath, track.url])
+      const ytdlp = spawn("yt-dlp", [
+        "-f",
+        "bestaudio",
+        "-o",
+        "-",
+        "--extractor-args",
+        "youtube:player_client=android",
+        "--no-check-certificate",
+        track.url,
+      ])
 
       const ffmpeg = spawn("ffmpeg", [
         "-ss",

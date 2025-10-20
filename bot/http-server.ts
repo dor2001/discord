@@ -1,10 +1,13 @@
 import http from "http"
 import { URL } from "url"
 import { getBotInstance } from "./index.js"
-import { YtDlpService } from "./ytdlp-service.js"
+import { InvidiousService } from "./invidious-service.js"
+import { YouTubeAPIService } from "./youtube-api-service.js"
+import { config } from "./config.js"
 
 const PORT = 3001
-const ytdlpService = new YtDlpService()
+const invidiousService = new InvidiousService()
+const youtubeApiService = config.youtubeApiKey ? new YouTubeAPIService() : null
 
 export function startHttpServer() {
   const server = http.createServer(async (req, res) => {
@@ -27,8 +30,20 @@ export function startHttpServer() {
         }
 
         try {
-          console.log("[v0] Searching with yt-dlp (no cookies/API keys needed)")
-          const results = await ytdlpService.search(query)
+          let results
+          if (youtubeApiService) {
+            try {
+              console.log("[v0] Using YouTube Data API v3")
+              results = await youtubeApiService.search(query)
+            } catch (error) {
+              console.log("[v0] YouTube API failed, falling back to Invidious")
+              results = await invidiousService.search(query)
+            }
+          } else {
+            console.log("[v0] No YouTube API key, using Invidious")
+            results = await invidiousService.search(query)
+          }
+
           res.writeHead(200)
           res.end(JSON.stringify({ results }))
         } catch (error) {
@@ -36,6 +51,49 @@ export function startHttpServer() {
           res.writeHead(500)
           res.end(JSON.stringify({ error: "Search failed" }))
         }
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/play") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", async () => {
+          try {
+            const { track } = JSON.parse(body)
+            const guildData = bot.getGuildData(guildId)
+
+            if (!guildData) {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "Guild not found" }))
+              return
+            }
+
+            if (!guildData.connection) {
+              res.writeHead(400)
+              res.end(JSON.stringify({ error: "Bot not in voice channel" }))
+              return
+            }
+
+            if (!guildData.player) {
+              const { MusicPlayer } = await import("./music-player.js")
+              guildData.player = new MusicPlayer(guildData.connection, guildId)
+            }
+
+            await guildData.player.addToQueue(track)
+
+            res.writeHead(200)
+            res.end(JSON.stringify({ success: true }))
+          } catch (error) {
+            console.error("[v0] Play error:", error)
+            res.writeHead(500)
+            res.end(JSON.stringify({ error: "Internal server error" }))
+          }
+        })
         return
       }
 

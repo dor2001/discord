@@ -1,10 +1,11 @@
-import { Client, GatewayIntentBits, Collection } from "discord.js"
+import { Client, GatewayIntentBits, Collection, REST, Routes } from "discord.js"
 import type { VoiceConnection } from "@discordjs/voice"
 import type { MusicPlayer } from "./music-player.js"
 import { config } from "./config.js"
 import { saveState } from "./state-manager.js"
 import { joinVoiceChannel } from "@discordjs/voice"
 import { ChannelType } from "discord.js"
+import { commands, handleCommand } from "./commands.js"
 
 export interface GuildData {
   guildId: string
@@ -46,9 +47,22 @@ export class MusicBot {
   }
 
   private setupEventHandlers() {
-    this.client.on("ready", () => {
+    this.client.on("ready", async () => {
       console.log("[v0] Bot is ready! Logged in as:", this.client.user?.tag)
       this.isReady = true
+
+      try {
+        console.log("[v0] Registering slash commands...")
+        const rest = new REST({ version: "10" }).setToken(config.discordToken)
+
+        await rest.put(Routes.applicationCommands(this.client.user!.id), {
+          body: commands.map((cmd) => cmd.toJSON()),
+        })
+
+        console.log("[v0] Successfully registered slash commands")
+      } catch (error) {
+        console.error("[v0] Failed to register slash commands:", error)
+      }
 
       this.client.guilds.cache.forEach((guild) => {
         console.log("[v0] Found guild:", guild.name, "ID:", guild.id)
@@ -67,6 +81,11 @@ export class MusicBot {
       if (this.readyResolve) {
         this.readyResolve()
       }
+    })
+
+    this.client.on("interactionCreate", async (interaction) => {
+      if (!interaction.isChatInputCommand()) return
+      await handleCommand(interaction)
     })
 
     this.client.on("guildCreate", (guild) => {
