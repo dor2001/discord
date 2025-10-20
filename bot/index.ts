@@ -198,6 +198,11 @@ export class MusicBot {
         return false
       }
 
+      if (guildData.voiceChannelId === channelId && guildData.connection) {
+        console.log("[v0] Already in voice channel:", channel.name)
+        return true
+      }
+
       // Leave existing connection if any
       if (guildData.connection) {
         guildData.connection.destroy()
@@ -247,6 +252,11 @@ export class MusicBot {
       console.error("[v0] Failed to leave voice channel:", error)
       return false
     }
+  }
+
+  public isInVoiceChannel(guildId: string): boolean {
+    const guildData = this.guilds.get(guildId)
+    return !!(guildData?.connection && guildData?.voiceChannelId)
   }
 }
 

@@ -14,6 +14,14 @@ export function startHttpServer() {
     // Enable CORS
     res.setHeader("Access-Control-Allow-Origin", "*")
     res.setHeader("Content-Type", "application/json")
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(200)
+      res.end()
+      return
+    }
 
     const bot = getBotInstance()
 
@@ -65,43 +73,82 @@ export function startHttpServer() {
         req.on("end", async () => {
           try {
             const { track } = JSON.parse(body)
-            console.log("[v0] Play request received for guild:", guildId)
-            console.log("[v0] Track:", track.title, "by", track.author)
+            console.log("[v0] Play request for guild:", guildId, "track:", track.title)
 
             const guildData = bot.getGuildData(guildId)
 
             if (!guildData) {
-              console.error("[v0] Guild not found:", guildId)
+              console.log("[v0] Guild not found:", guildId)
               res.writeHead(404)
               res.end(JSON.stringify({ error: "Guild not found" }))
               return
             }
 
             if (!guildData.connection) {
-              console.error("[v0] Bot not in voice channel for guild:", guildId)
-              res.writeHead(400)
-              res.end(JSON.stringify({ error: "Bot not in voice channel" }))
-              return
+              console.log("[v0] Bot not in voice channel, attempting auto-join")
+
+              // Try to find a voice channel with users
+              const guild = bot.client.guilds.cache.get(guildId)
+              if (guild) {
+                const voiceChannel = guild.channels.cache.find((ch) => ch.isVoiceBased() && ch.members.size > 0)
+
+                if (voiceChannel) {
+                  console.log("[v0] Auto-joining voice channel:", voiceChannel.name)
+                  await bot.joinVoiceChannel(guildId, voiceChannel.id)
+                } else {
+                  console.log("[v0] No voice channel with users found")
+                  res.writeHead(400)
+                  res.end(JSON.stringify({ error: "Bot not in voice channel. Please join a voice channel first." }))
+                  return
+                }
+              }
             }
 
             if (!guildData.player) {
               console.log("[v0] Creating new music player for guild:", guildId)
               const { MusicPlayer } = await import("./music-player.js")
-              guildData.player = new MusicPlayer(guildData.connection, guildId)
+              guildData.player = new MusicPlayer(guildData.connection!, guildId)
             }
 
             console.log("[v0] Adding track to queue:", track.title)
             await guildData.player.addToQueue(track)
-            console.log("[v0] Track added successfully, queue size:", guildData.player.getStatus().queue.length)
+            const status = guildData.player.getStatus()
+            console.log("[v0] Track added successfully, queue size:", status.queue.length)
 
             res.writeHead(200)
-            res.end(JSON.stringify({ success: true }))
+            res.end(JSON.stringify({ success: true, queueSize: status.queue.length }))
           } catch (error) {
-            console.error("[v0] Play error:", error)
+            console.log("[v0] Play failed:", { error: error instanceof Error ? error.message : "Unknown error" })
             res.writeHead(500)
-            res.end(JSON.stringify({ error: "Internal server error" }))
+            res.end(JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }))
           }
         })
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/player")) {
+        const guildId = path.split("/")[2]
+        const guildData = bot.getGuildData(guildId)
+        if (guildData?.player) {
+          const status = guildData.player.getStatus()
+          res.writeHead(200)
+          res.end(
+            JSON.stringify({
+              player: status,
+              voiceChannelId: guildData.voiceChannelId,
+              voiceChannelLocked: guildData.voiceChannelLocked,
+            }),
+          )
+        } else {
+          res.writeHead(200)
+          res.end(
+            JSON.stringify({
+              player: null,
+              voiceChannelId: guildData?.voiceChannelId || null,
+              voiceChannelLocked: guildData?.voiceChannelLocked || false,
+            }),
+          )
+        }
         return
       }
 
@@ -110,19 +157,6 @@ export function startHttpServer() {
         const channels = bot.getVoiceChannels(guildId)
         res.writeHead(200)
         res.end(JSON.stringify({ channels }))
-        return
-      }
-
-      if (path.startsWith("/guild/") && path.endsWith("/player")) {
-        const guildId = path.split("/")[2]
-        const guildData = bot.getGuildData(guildId)
-        if (guildData?.player) {
-          res.writeHead(200)
-          res.end(JSON.stringify({ player: guildData.player.getStatus() }))
-        } else {
-          res.writeHead(404)
-          res.end(JSON.stringify({ error: "No player found" }))
-        }
         return
       }
 
