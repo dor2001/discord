@@ -1,6 +1,15 @@
 import { startBot } from "./index.js"
 import { config } from "./config.js"
 import { startHttpServer } from "./http-server.js"
+import { mkdirSync } from "fs"
+
+try {
+  mkdirSync("/tmp/ytdl", { recursive: true })
+  process.chdir("/tmp/ytdl")
+  console.log("[v0] Changed working directory to /tmp/ytdl")
+} catch (error) {
+  console.error("[v0] Failed to change working directory:", error)
+}
 
 if (!config.discordToken) {
   console.error("[v0] DISCORD_TOKEN environment variable is required!")
