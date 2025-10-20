@@ -16,6 +16,6 @@
     "baseUrl": ".",
     "paths": {}
   },
-  "include": ["bot/**/*.ts", "lib/**/*.ts"],
+  "include": ["bot/**/*.ts", "lib/event-emitter.ts", "lib/config.ts"],
   "exclude": ["node_modules", "dist", ".next", "**/*.test.ts"]
 }

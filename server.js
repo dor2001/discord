@@ -21,24 +21,24 @@ async function startServer() {
 
     botProcess.on("error", (error) => {
       console.error("[v0] Failed to start bot process:", error)
+      console.error("[v0] Make sure dist/bot/start.js exists and is compiled correctly")
     })
 
     botProcess.on("exit", (code) => {
       console.log("[v0] Bot process exited with code:", code)
       if (code !== 0) {
         console.error("[v0] Bot crashed, but keeping server running")
+        console.error("[v0] Check if DISCORD_TOKEN is set correctly")
       }
     })
 
-    // Wait a bit for the bot to initialize
-    await new Promise((resolve) => setTimeout(resolve, 3000))
+    console.log("[v0] Waiting 5 seconds for bot to initialize...")
+    await new Promise((resolve) => setTimeout(resolve, 5000))
 
     console.log("[v0] Starting Next.js server...")
 
-    // Prepare Next.js
     await app.prepare()
 
-    // Create HTTP server
     createServer(async (req, res) => {
       try {
         const parsedUrl = parse(req.url, true)
