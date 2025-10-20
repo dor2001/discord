@@ -20,6 +20,7 @@
 - Discord Bot Token
 - ffmpeg
 - yt-dlp
+- YouTube Data API v3 Key (אופציונלי, מומלץ)
 
 ## התקנה מקומית
 
@@ -45,6 +46,7 @@ DISCORD_BOT_TOKEN=your_bot_token_here
 SESSION_SECRET=your_random_secret_here
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=your_secure_password
+YOUTUBE_API_KEY=your_api_key_here
 \`\`\`
 
 5. הרץ את הפרויקט:
@@ -73,6 +75,7 @@ docker-compose up -d
    - \`SESSION_SECRET\`
    - \`ADMIN_USERNAME\`
    - \`ADMIN_PASSWORD\`
+   - \`YOUTUBE_API_KEY\`
 4. Coolify יבנה וידפלוי אוטומטית
 
 ## משתני סביבה
@@ -83,10 +86,29 @@ docker-compose up -d
 | \`SESSION_SECRET\` | Secret לניהול sessions | - |
 | \`ADMIN_USERNAME\` | שם משתמש למערכת | admin |
 | \`ADMIN_PASSWORD\` | סיסמה למערכת | - |
+| \`YOUTUBE_API_KEY\` | YouTube Data API v3 Key (אופציונלי, מומלץ) | - |
 | \`PIPED_INSTANCE\` | כתובת Piped instance | https://pipedapi.kavin.rocks |
 | \`COOKIES_PATH\` | נתיב לקובץ cookies.txt | ./data/cookies.txt |
 | \`DATA_PATH\` | נתיב לתיקיית data | ./data |
 | \`PORT\` | פורט השרת | 3000 |
+
+### קבלת YouTube API Key (מומלץ לחיפוש אמין)
+
+1. עבור ל-[Google Cloud Console](https://console.cloud.google.com/)
+2. צור פרויקט חדש או בחר פרויקט קיים
+3. הפעל את YouTube Data API v3:
+   - לך ל-"APIs & Services" > "Library"
+   - חפש "YouTube Data API v3"
+   - לחץ "Enable"
+4. צור API Key:
+   - לך ל-"APIs & Services" > "Credentials"
+   - לחץ "Create Credentials" > "API Key"
+   - העתק את ה-API Key
+5. הוסף את ה-API Key למשתני הסביבה: `YOUTUBE_API_KEY=your_api_key_here`
+
+**חינמי עד 10,000 requests ליום** - מספיק למרבית המשתמשים!
+
+אם לא מוגדר API Key, המערכת תשתמש ב-Invidious (פחות אמין).
 
 ## שימוש
 

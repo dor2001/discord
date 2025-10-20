@@ -8,4 +8,5 @@ export const config = {
   adminPassword: process.env.ADMIN_PASS || "admin",
   port: Number.parseInt(process.env.PORT || "3000", 10),
   botPort: 3001,
+  youtubeApiKey: process.env.YOUTUBE_API_KEY,
 }
