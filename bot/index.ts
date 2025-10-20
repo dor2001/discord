@@ -207,7 +207,7 @@ export class MusicBot {
       const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: guild.id,
-        adapterCreator: guild.voiceAdapterCreator,
+        adapterCreator: guild.voiceAdapterCreator as any,
       })
 
       guildData.voiceChannelId = channelId
