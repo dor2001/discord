@@ -1,8 +1,8 @@
 import { Client, GatewayIntentBits, Collection } from "discord.js"
 import type { VoiceConnection } from "@discordjs/voice"
-import type { MusicPlayer } from "./music-player"
-import { config } from "./config"
-import { saveState } from "./state-manager"
+import type { MusicPlayer } from "./music-player.js"
+import { config } from "./config.js"
+import { saveState } from "./state-manager.js"
 
 export interface GuildData {
   guildId: string

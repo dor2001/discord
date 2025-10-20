@@ -1,6 +1,6 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs"
 import { join } from "path"
-import { config } from "./config"
+import { config } from "./config.js"
 
 const STATE_FILE = join(config.dataPath, "bot-state.json")
 

@@ -1,6 +1,6 @@
-import { startBot } from "./index"
-import { config } from "./config"
-import { startHttpServer } from "./http-server"
+import { startBot } from "./index.js"
+import { config } from "./config.js"
+import { startHttpServer } from "./http-server.js"
 
 if (!config.discordToken) {
   console.error("[v0] DISCORD_TOKEN environment variable is required!")

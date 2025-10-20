@@ -1,5 +1,5 @@
-import { config } from "./config"
-import type { Track } from "./music-player"
+import { config } from "./config.js"
+import type { Track } from "./music-player.js"
 
 interface PipedSearchResult {
   items: Array<{

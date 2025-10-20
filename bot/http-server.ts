@@ -1,7 +1,7 @@
 import http from "http"
 import { URL } from "url"
-import { getBotInstance } from "./index"
-import { pipedService } from "./piped-service"
+import { getBotInstance } from "./index.js"
+import { pipedService } from "./piped-service.js"
 
 const PORT = 3001
 

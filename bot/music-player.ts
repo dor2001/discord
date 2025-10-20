@@ -8,8 +8,8 @@ import {
   type PlayerSubscription,
 } from "@discordjs/voice"
 import { spawn } from "child_process"
-import { config } from "./config"
-import { botEventEmitter } from "../lib/event-emitter"
+import { config } from "./config.js"
+import { botEventEmitter } from "../lib/event-emitter.js"
 
 export interface Track {
   id: string
