@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server"
-import { requireAuth } from "@/lib/auth"
 import { botEventEmitter } from "@/lib/event-emitter"
 
 export async function GET(_request: Request, { params }: { params: Promise<{ guildId: string }> }) {
   try {
-    await requireAuth()
     const { guildId } = await params
 
     const stream = new ReadableStream({
@@ -15,10 +13,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ gui
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
         }
 
-        // Send initial connection message
         sendEvent({ type: "connected" })
 
-        // Listen for player updates for this guild
         const handleUpdate = (event: any) => {
           if (event.guildId === guildId) {
             sendEvent(event)
@@ -27,7 +23,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ gui
 
         botEventEmitter.onPlayerUpdate(handleUpdate)
 
-        // Cleanup on close
         _request.signal.addEventListener("abort", () => {
           botEventEmitter.offPlayerUpdate(handleUpdate)
           controller.close()
@@ -44,6 +39,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ gui
     })
   } catch (error) {
     console.error("[v0] SSE error:", error)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: "Failed to setup event stream" }, { status: 500 })
   }
 }

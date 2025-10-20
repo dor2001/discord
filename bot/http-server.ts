@@ -14,14 +14,6 @@ export function startHttpServer() {
     // Enable CORS
     res.setHeader("Access-Control-Allow-Origin", "*")
     res.setHeader("Content-Type", "application/json")
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type")
-
-    if (req.method === "OPTIONS") {
-      res.writeHead(200)
-      res.end()
-      return
-    }
 
     const bot = getBotInstance()
 
@@ -73,41 +65,34 @@ export function startHttpServer() {
         req.on("end", async () => {
           try {
             const { track } = JSON.parse(body)
-            console.log("[v0] Play request for guild:", guildId, "track:", track.title)
+            console.log("[v0] Play request received for guild:", guildId)
+            console.log("[v0] Track:", track.title, "by", track.author)
 
             const guildData = bot.getGuildData(guildId)
 
             if (!guildData) {
-              console.log("[v0] Guild not found:", guildId)
+              console.error("[v0] Guild not found:", guildId)
               res.writeHead(404)
               res.end(JSON.stringify({ error: "Guild not found" }))
               return
             }
 
             if (!guildData.connection) {
-              console.log("[v0] Bot not in voice channel, attempting auto-join")
-
-              // Try to find a voice channel with users
-              const guild = bot.client.guilds.cache.get(guildId)
-              if (guild) {
-                const voiceChannel = guild.channels.cache.find((ch) => ch.isVoiceBased() && ch.members.size > 0)
-
-                if (voiceChannel) {
-                  console.log("[v0] Auto-joining voice channel:", voiceChannel.name)
-                  await bot.joinVoiceChannel(guildId, voiceChannel.id)
-                } else {
-                  console.log("[v0] No voice channel with users found")
-                  res.writeHead(400)
-                  res.end(JSON.stringify({ error: "Bot not in voice channel. Please join a voice channel first." }))
-                  return
-                }
-              }
+              console.error("[v0] Bot not in voice channel for guild:", guildId)
+              res.writeHead(400)
+              res.end(
+                JSON.stringify({
+                  error: "Bot not in voice channel",
+                  suggestion: "Please join a voice channel first or use /join command",
+                }),
+              )
+              return
             }
 
             if (!guildData.player) {
               console.log("[v0] Creating new music player for guild:", guildId)
               const { MusicPlayer } = await import("./music-player.js")
-              guildData.player = new MusicPlayer(guildData.connection!, guildId)
+              guildData.player = new MusicPlayer(guildData.connection, guildId)
             }
 
             console.log("[v0] Adding track to queue:", track.title)
@@ -116,39 +101,265 @@ export function startHttpServer() {
             console.log("[v0] Track added successfully, queue size:", status.queue.length)
 
             res.writeHead(200)
-            res.end(JSON.stringify({ success: true, queueSize: status.queue.length }))
+            res.end(JSON.stringify({ success: true, status }))
           } catch (error) {
-            console.log("[v0] Play failed:", { error: error instanceof Error ? error.message : "Unknown error" })
+            console.error("[v0] Play error:", error)
             res.writeHead(500)
-            res.end(JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }))
+            res.end(JSON.stringify({ error: "Internal server error" }))
           }
         })
         return
       }
 
-      if (path.startsWith("/guild/") && path.endsWith("/player")) {
+      if (path.startsWith("/guild/") && path.endsWith("/pause") && req.method === "POST") {
         const guildId = path.split("/")[2]
         const guildData = bot.getGuildData(guildId)
         if (guildData?.player) {
-          const status = guildData.player.getStatus()
+          guildData.player.pause()
           res.writeHead(200)
-          res.end(
-            JSON.stringify({
-              player: status,
-              voiceChannelId: guildData.voiceChannelId,
-              voiceChannelLocked: guildData.voiceChannelLocked,
-            }),
-          )
+          res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
         } else {
-          res.writeHead(200)
-          res.end(
-            JSON.stringify({
-              player: null,
-              voiceChannelId: guildData?.voiceChannelId || null,
-              voiceChannelLocked: guildData?.voiceChannelLocked || false,
-            }),
-          )
+          res.writeHead(404)
+          res.end(JSON.stringify({ error: "No player found" }))
         }
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/resume") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        const guildData = bot.getGuildData(guildId)
+        if (guildData?.player) {
+          guildData.player.resume()
+          res.writeHead(200)
+          res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+        } else {
+          res.writeHead(404)
+          res.end(JSON.stringify({ error: "No player found" }))
+        }
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/stop") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        const guildData = bot.getGuildData(guildId)
+        if (guildData?.player) {
+          guildData.player.stop()
+          res.writeHead(200)
+          res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+        } else {
+          res.writeHead(404)
+          res.end(JSON.stringify({ error: "No player found" }))
+        }
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/skip") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        const guildData = bot.getGuildData(guildId)
+        if (guildData?.player) {
+          guildData.player.skip()
+          res.writeHead(200)
+          res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+        } else {
+          res.writeHead(404)
+          res.end(JSON.stringify({ error: "No player found" }))
+        }
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/volume") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", () => {
+          try {
+            const { volume } = JSON.parse(body)
+            const guildData = bot.getGuildData(guildId)
+            if (guildData?.player) {
+              guildData.player.setVolume(volume)
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+            } else {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "No player found" }))
+            }
+          } catch (error) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ error: "Invalid request" }))
+          }
+        })
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/seek") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", async () => {
+          try {
+            const { position } = JSON.parse(body)
+            const guildData = bot.getGuildData(guildId)
+            if (guildData?.player) {
+              await guildData.player.seek(position)
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+            } else {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "No player found" }))
+            }
+          } catch (error) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ error: "Invalid request" }))
+          }
+        })
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/loop") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", () => {
+          try {
+            const { mode } = JSON.parse(body)
+            const guildData = bot.getGuildData(guildId)
+            if (guildData?.player) {
+              guildData.player.setLoopMode(mode)
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+            } else {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "No player found" }))
+            }
+          } catch (error) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ error: "Invalid request" }))
+          }
+        })
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/shuffle") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", () => {
+          try {
+            const { enabled } = JSON.parse(body)
+            const guildData = bot.getGuildData(guildId)
+            if (guildData?.player) {
+              guildData.player.setShuffle(enabled)
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+            } else {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "No player found" }))
+            }
+          } catch (error) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ error: "Invalid request" }))
+          }
+        })
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/lock") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", () => {
+          try {
+            const { locked } = JSON.parse(body)
+            const guildData = bot.getGuildData(guildId)
+            if (guildData) {
+              guildData.voiceChannelLocked = locked
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true }))
+            } else {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "Guild not found" }))
+            }
+          } catch (error) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ error: "Invalid request" }))
+          }
+        })
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/queue/remove") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", () => {
+          try {
+            const { index } = JSON.parse(body)
+            const guildData = bot.getGuildData(guildId)
+            if (guildData?.player) {
+              guildData.player.removeFromQueue(index)
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+            } else {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "No player found" }))
+            }
+          } catch (error) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ error: "Invalid request" }))
+          }
+        })
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/queue/reorder") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", () => {
+          try {
+            const { fromIndex, toIndex } = JSON.parse(body)
+            const guildData = bot.getGuildData(guildId)
+            if (guildData?.player) {
+              guildData.player.reorderQueue(fromIndex, toIndex)
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+            } else {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "No player found" }))
+            }
+          } catch (error) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ error: "Invalid request" }))
+          }
+        })
         return
       }
 
@@ -157,6 +368,19 @@ export function startHttpServer() {
         const channels = bot.getVoiceChannels(guildId)
         res.writeHead(200)
         res.end(JSON.stringify({ channels }))
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/player")) {
+        const guildId = path.split("/")[2]
+        const guildData = bot.getGuildData(guildId)
+        if (guildData?.player) {
+          res.writeHead(200)
+          res.end(JSON.stringify({ player: guildData.player.getStatus() }))
+        } else {
+          res.writeHead(404)
+          res.end(JSON.stringify({ error: "No player found" }))
+        }
         return
       }
 
@@ -222,6 +446,7 @@ export function startHttpServer() {
               voiceChannelId: guildData.voiceChannelId,
               voiceChannelLocked: guildData.voiceChannelLocked,
               isPlaying: guildData.player?.isPlaying() || false,
+              player: guildData.player?.getStatus() || null,
             }),
           )
         } else {

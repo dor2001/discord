@@ -103,30 +103,15 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       }
 
       case "play": {
+        if (!guildData.connection) {
+          await interaction.reply({ content: "❌ I am not in a voice channel! Use /join first", ephemeral: true })
+          return
+        }
+
         const query = interaction.options.getString("query", true)
         await interaction.deferReply()
 
         try {
-          if (!guildData.connection) {
-            const member = interaction.member as any
-            const voiceChannel = member?.voice?.channel
-
-            if (!voiceChannel) {
-              await interaction.editReply(
-                "❌ You need to be in a voice channel! Use /join first or join a voice channel.",
-              )
-              return
-            }
-
-            console.log("[v0] Auto-joining voice channel:", voiceChannel.name)
-            const joinSuccess = await bot.joinVoiceChannel(guildId, voiceChannel.id)
-
-            if (!joinSuccess) {
-              await interaction.editReply("❌ Failed to join your voice channel")
-              return
-            }
-          }
-
           const results = await ytdlpService.search(query)
 
           if (results.length === 0) {
@@ -137,21 +122,11 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
           const track = results[0]
 
           if (!guildData.player) {
-            guildData.player = new MusicPlayer(guildData.connection!, guildId)
+            guildData.player = new MusicPlayer(guildData.connection, guildId)
           }
 
           await guildData.player.addToQueue(track)
-
-          const status = guildData.player.getStatus()
-          const queuePosition = status.queue.length
-
-          if (queuePosition === 0 && status.currentTrack) {
-            await interaction.editReply(`🎵 Now playing: **${track.title}** (${track.author})`)
-          } else {
-            await interaction.editReply(
-              `✅ Added to queue (position ${queuePosition}): **${track.title}** (${track.author})`,
-            )
-          }
+          await interaction.editReply(`✅ Added to queue: **${track.title}** (${track.author})`)
         } catch (error) {
           console.error("[v0] Play command error:", error)
           await interaction.editReply("❌ Error in search or adding the song")
