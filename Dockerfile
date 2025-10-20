@@ -5,9 +5,21 @@ RUN apk add --no-cache \
     py3-pip \
     ffmpeg \
     libsodium-dev \
+    chromium \
+    chromium-chromedriver \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
     curl && \
     python3 -m pip install --no-cache-dir --break-system-packages yt-dlp && \
     rm -rf /var/cache/apk/* /tmp/* /root/.cache /root/.npm
+
+ENV CHROME_BIN=/usr/bin/chromium-browser \
+    CHROME_PATH=/usr/lib/chromium/ \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 
@@ -61,8 +73,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-RUN mkdir -p /app/data /tmp/ytdl && \
-    chown -R nextjs:nodejs /app/data /tmp/ytdl
+RUN mkdir -p /app/data /tmp/ytdl /home/nextjs/.config/chromium && \
+    chown -R nextjs:nodejs /app/data /tmp/ytdl /home/nextjs
 
 USER nextjs
 
