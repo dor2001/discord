@@ -12,7 +12,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package*.json ./
-RUN npm ci --omit=dev --no-audit --no-fund && \
+RUN npm install --omit=dev --no-audit --no-fund && \
     npm cache clean --force
 
 FROM base AS builder
@@ -34,7 +34,7 @@ ENV DATA_PATH=${DATA_PATH:-./data}
 ENV COOKIES_PATH=${COOKIES_PATH:-./data/cookies.txt}
 
 COPY package*.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm install --no-audit --no-fund
 
 COPY . .
 
