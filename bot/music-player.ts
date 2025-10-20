@@ -8,7 +8,7 @@ import {
   type PlayerSubscription,
   StreamType,
 } from "@discordjs/voice"
-import ytdl from "@distube/ytdl-core"
+import youtubedl from "youtube-dl-exec"
 import { botEventEmitter } from "../lib/event-emitter.js"
 
 export interface Track {
@@ -102,26 +102,20 @@ export class MusicPlayer {
       this.currentPosition = 0
       this.startTime = Date.now()
 
-      const stream = ytdl(track.url, {
-        filter: "audioonly",
-        quality: "highestaudio",
-        highWaterMark: 1 << 25,
-        dlChunkSize: 0, // Disable chunking to prevent debug file writing
-        requestOptions: {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
-            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Encoding": "gzip, deflate, br",
-            DNT: "1",
-            Connection: "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-          },
-        },
+      const stream = youtubedl.exec(track.url, {
+        output: "-",
+        format: "bestaudio",
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+        addHeader: [
+          "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept-Language:en-US,en;q=0.9",
+        ],
+        extractorArgs: "youtube:player_client=android,ios,web",
       })
 
-      this.currentResource = createAudioResource(stream, {
+      this.currentResource = createAudioResource(stream.stdout!, {
         inputType: StreamType.Arbitrary,
         inlineVolume: true,
       })
@@ -236,22 +230,21 @@ export class MusicPlayer {
     try {
       console.log("[v0] Seeking to:", seconds, "seconds")
 
-      const stream = ytdl(track.url, {
-        filter: "audioonly",
-        quality: "highestaudio",
-        highWaterMark: 1 << 25,
-        begin: seconds * 1000,
-        dlChunkSize: 0, // Disable chunking to prevent debug file writing
-        requestOptions: {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
-          },
-        },
+      const stream = youtubedl.exec(track.url, {
+        output: "-",
+        format: "bestaudio",
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+        addHeader: [
+          "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept-Language:en-US,en;q=0.9",
+        ],
+        extractorArgs: "youtube:player_client=android,ios,web",
+        downloadSections: `*${seconds}-inf`,
       })
 
-      this.currentResource = createAudioResource(stream, {
+      this.currentResource = createAudioResource(stream.stdout!, {
         inputType: StreamType.Arbitrary,
         inlineVolume: true,
       })

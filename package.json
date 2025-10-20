@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@discordjs/voice": "latest",
-    "@distube/ytdl-core": "latest",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-scroll-area": "^1.2.2",
     "@radix-ui/react-select": "^2.1.4",
@@ -43,7 +42,8 @@
     "tsx": "^4.19.2",
     "tw-animate-css": "latest",
     "url": "latest",
-    "util": "latest"
+    "util": "latest",
+    "youtube-dl-exec": "latest"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
