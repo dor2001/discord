@@ -1,19 +1,10 @@
 FROM node:22-alpine AS base
 
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    ffmpeg \
-    libsodium-dev && \
+RUN apk add --no-cache python3 py3-pip ffmpeg libsodium-dev && \
     python3 -m pip install --no-cache-dir --break-system-packages yt-dlp && \
-    rm -rf /var/cache/apk/* /tmp/* /root/.cache
+    rm -rf /var/cache/apk/* /tmp/* /root/.cache /root/.npm
 
 WORKDIR /app
-
-FROM base AS deps
-COPY package*.json ./
-RUN npm install --omit=dev --no-audit --no-fund && \
-    npm cache clean --force
 
 FROM base AS builder
 
@@ -34,13 +25,18 @@ ENV DATA_PATH=${DATA_PATH:-./data}
 ENV COOKIES_PATH=${COOKIES_PATH:-./data/cookies.txt}
 
 COPY package*.json ./
-RUN npm install --no-audit --no-fund
+
+RUN npm install --no-audit --no-fund --prefer-offline && \
+    npm cache clean --force && \
+    rm -rf /tmp/* /root/.cache /root/.npm
 
 COPY . .
 
 RUN npm run build && \
+    rm -rf node_modules && \
+    npm install --omit=dev --no-audit --no-fund --prefer-offline && \
     npm cache clean --force && \
-    rm -rf /tmp/* /root/.cache
+    rm -rf /tmp/* /root/.cache /root/.npm
 
 FROM base AS runner
 
@@ -57,11 +53,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nextjs:nodejs /app/healthcheck.js ./healthcheck.js
 COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/discord.js ./node_modules/discord.js
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@discordjs ./node_modules/@discordjs
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/libsodium-wrappers ./node_modules/libsodium-wrappers
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/prism-media ./node_modules/prism-media
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/discord.js ./node_modules/discord.js
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@discordjs ./node_modules/@discordjs
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/libsodium-wrappers ./node_modules/libsodium-wrappers
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prism-media ./node_modules/prism-media
 
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
 
