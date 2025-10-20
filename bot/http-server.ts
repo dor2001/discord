@@ -1,9 +1,10 @@
 import http from "http"
 import { URL } from "url"
 import { getBotInstance } from "./index.js"
-import { youtubeService } from "./youtube-service.js"
+import { InvidiousService } from "./invidious-service.js"
 
 const PORT = 3001
+const invidiousService = new InvidiousService()
 
 export function startHttpServer() {
   const server = http.createServer(async (req, res) => {
@@ -26,7 +27,7 @@ export function startHttpServer() {
         }
 
         try {
-          const results = await youtubeService.search(query)
+          const results = await invidiousService.search(query)
           res.writeHead(200)
           res.end(JSON.stringify({ results }))
         } catch (error) {
