@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
-import { getBotInstance } from "@/bot/index"
-import { joinVoiceChannel } from "@discordjs/voice"
-import { MusicPlayer } from "@/bot/music-player"
 
 export async function POST(_request: Request, { params }: { params: Promise<{ guildId: string }> }) {
   try {
@@ -15,30 +12,19 @@ export async function POST(_request: Request, { params }: { params: Promise<{ gu
       return NextResponse.json({ error: "Channel ID is required" }, { status: 400 })
     }
 
-    const bot = getBotInstance()
-    const guildData = bot.getGuildData(guildId)
-
-    if (!guildData) {
-      return NextResponse.json({ error: "Guild not found" }, { status: 404 })
-    }
-
-    if (guildData.voiceChannelId && guildData.voiceChannelLocked) {
-      return NextResponse.json({ error: "Voice channel is locked" }, { status: 403 })
-    }
-
-    const connection = joinVoiceChannel({
-      channelId,
-      guildId,
-      adapterCreator: bot.client.guilds.cache.get(guildId)?.voiceAdapterCreator as any,
+    const response = await fetch(`http://localhost:3001/guild/${guildId}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channelId }),
     })
 
-    const player = new MusicPlayer(connection, guildId)
+    if (!response.ok) {
+      const error = await response.json()
+      return NextResponse.json(error, { status: response.status })
+    }
 
-    guildData.voiceChannelId = channelId
-    guildData.connection = connection
-    guildData.player = player
-
-    return NextResponse.json({ success: true, channelId })
+    const data = await response.json()
+    return NextResponse.json(data)
   } catch (error) {
     console.error("[v0] Join voice channel error:", error)
     return NextResponse.json({ error: "Failed to join voice channel" }, { status: 500 })

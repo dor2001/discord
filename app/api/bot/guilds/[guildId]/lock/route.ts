@@ -1,24 +1,25 @@
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
-import { getBotInstance } from "@/bot/index"
 
 export async function POST(_request: Request, { params }: { params: Promise<{ guildId: string }> }) {
   try {
     await requireAuth()
     const { guildId } = await params
     const body = await _request.json()
-    const { locked } = body
 
-    const bot = getBotInstance()
-    const guildData = bot.getGuildData(guildId)
+    const response = await fetch(`http://localhost:3001/guild/${guildId}/lock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
 
-    if (!guildData) {
-      return NextResponse.json({ error: "Guild not found" }, { status: 404 })
+    if (!response.ok) {
+      const error = await response.json()
+      return NextResponse.json(error, { status: response.status })
     }
 
-    guildData.voiceChannelLocked = locked
-
-    return NextResponse.json({ success: true, locked })
+    const data = await response.json()
+    return NextResponse.json(data)
   } catch (error) {
     console.error("[v0] Lock voice channel error:", error)
     return NextResponse.json({ error: "Failed to lock voice channel" }, { status: 500 })

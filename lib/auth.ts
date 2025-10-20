@@ -1,5 +1,5 @@
 import { cookies } from "next/headers"
-import { config } from "../bot/config"
+import { config } from "./config"
 
 export interface Session {
   username: string
