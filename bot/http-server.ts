@@ -65,26 +65,34 @@ export function startHttpServer() {
         req.on("end", async () => {
           try {
             const { track } = JSON.parse(body)
+            console.log("[v0] Play request received for guild:", guildId)
+            console.log("[v0] Track:", track.title, "by", track.author)
+
             const guildData = bot.getGuildData(guildId)
 
             if (!guildData) {
+              console.error("[v0] Guild not found:", guildId)
               res.writeHead(404)
               res.end(JSON.stringify({ error: "Guild not found" }))
               return
             }
 
             if (!guildData.connection) {
+              console.error("[v0] Bot not in voice channel for guild:", guildId)
               res.writeHead(400)
               res.end(JSON.stringify({ error: "Bot not in voice channel" }))
               return
             }
 
             if (!guildData.player) {
+              console.log("[v0] Creating new music player for guild:", guildId)
               const { MusicPlayer } = await import("./music-player.js")
               guildData.player = new MusicPlayer(guildData.connection, guildId)
             }
 
+            console.log("[v0] Adding track to queue:", track.title)
             await guildData.player.addToQueue(track)
+            console.log("[v0] Track added successfully, queue size:", guildData.player.getStatus().queue.length)
 
             res.writeHead(200)
             res.end(JSON.stringify({ success: true }))

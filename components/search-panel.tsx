@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Plus } from "lucide-react"
+import { Search, Plus, Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface SearchPanelProps {
   guildId: string
@@ -15,6 +16,8 @@ export function SearchPanel({ guildId, mutate }: SearchPanelProps) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const { toast } = useToast()
+  const [addingTrackId, setAddingTrackId] = useState<string | null>(null)
 
   const handleSearch = async () => {
     if (!query.trim()) return
@@ -32,12 +35,35 @@ export function SearchPanel({ guildId, mutate }: SearchPanelProps) {
   }
 
   const handleAddToQueue = async (track: any) => {
-    await fetch(`/api/bot/guilds/${guildId}/play`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ track }),
-    })
-    mutate()
+    setAddingTrackId(track.id)
+    try {
+      console.log("[v0] Adding track to queue:", track.title)
+      const response = await fetch(`/api/bot/guilds/${guildId}/play`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ track }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to add track")
+      }
+
+      toast({
+        title: "נוסף לתור",
+        description: `${track.title} נוסף לתור בהצלחה`,
+      })
+      mutate()
+    } catch (error) {
+      console.error("[v0] Add to queue error:", error)
+      toast({
+        title: "שגיאה",
+        description: error instanceof Error ? error.message : "לא ניתן להוסיף את השיר לתור",
+        variant: "destructive",
+      })
+    } finally {
+      setAddingTrackId(null)
+    }
   }
 
   const formatDuration = (seconds: number) => {
@@ -50,7 +76,7 @@ export function SearchPanel({ guildId, mutate }: SearchPanelProps) {
     <Card>
       <CardHeader>
         <CardTitle>חיפוש שירים</CardTitle>
-        <CardDescription>חפש שירים ב-YouTube דרך Piped</CardDescription>
+        <CardDescription>חפש שירים ב-YouTube</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
@@ -81,8 +107,12 @@ export function SearchPanel({ guildId, mutate }: SearchPanelProps) {
                 <p className="text-sm text-muted-foreground truncate">{track.author}</p>
                 <p className="text-xs text-muted-foreground">{formatDuration(track.duration)}</p>
               </div>
-              <Button onClick={() => handleAddToQueue(track)} size="sm">
-                <Plus className="h-4 w-4" />
+              <Button onClick={() => handleAddToQueue(track)} size="sm" disabled={addingTrackId === track.id}>
+                {addingTrackId === track.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
               </Button>
             </div>
           ))}
