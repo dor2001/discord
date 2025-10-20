@@ -73,8 +73,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-RUN mkdir -p /app/data /tmp/ytdl /home/nextjs/.config/chromium && \
-    chown -R nextjs:nodejs /app/data /tmp/ytdl /home/nextjs
+RUN mkdir -p /app/data /tmp/ytdl /home/nextjs/.config/chromium/Default && \
+    chown -R nextjs:nodejs /app/data /tmp/ytdl /home/nextjs && \
+    su nextjs -c "chromium-browser --headless --disable-gpu --no-sandbox --disable-dev-shm-usage --user-data-dir=/home/nextjs/.config/chromium --no-first-run --disable-extensions --disable-background-networking about:blank" || true
 
 USER nextjs
 
