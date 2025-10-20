@@ -47,6 +47,7 @@ FROM base AS runner
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV YTDL_NO_UPDATE=1
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
@@ -60,8 +61,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-RUN mkdir -p /app/data && \
-    chown -R nextjs:nodejs /app/data
+RUN mkdir -p /app/data /tmp/ytdl && \
+    chown -R nextjs:nodejs /app/data /tmp/ytdl
 
 USER nextjs
 
@@ -69,6 +70,7 @@ EXPOSE 3000 3001
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV TMPDIR=/tmp/ytdl
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3000/api/bot/health || exit 1

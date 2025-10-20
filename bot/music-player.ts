@@ -106,7 +106,7 @@ export class MusicPlayer {
         filter: "audioonly",
         quality: "highestaudio",
         highWaterMark: 1 << 25,
-        agent: undefined, // Disable debug file writing
+        dlChunkSize: 0, // Disable chunking to prevent debug file writing
         requestOptions: {
           headers: {
             "User-Agent":
@@ -241,7 +241,7 @@ export class MusicPlayer {
         quality: "highestaudio",
         highWaterMark: 1 << 25,
         begin: seconds * 1000,
-        agent: undefined, // Disable debug file writing
+        dlChunkSize: 0, // Disable chunking to prevent debug file writing
         requestOptions: {
           headers: {
             "User-Agent":
