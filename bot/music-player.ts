@@ -8,7 +8,7 @@ import {
   type PlayerSubscription,
   StreamType,
 } from "@discordjs/voice"
-import youtubedl from "youtube-dl-exec"
+import { spawn } from "child_process"
 import { botEventEmitter } from "../lib/event-emitter.js"
 
 export interface Track {
@@ -102,19 +102,26 @@ export class MusicPlayer {
       this.currentPosition = 0
       this.startTime = Date.now()
 
-      const stream = youtubedl.exec(track.url, {
-        output: "-",
-        format: "bestaudio",
-        noCheckCertificates: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        addHeader: [
-          "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Accept-Language:en-US,en;q=0.9",
-        ],
+      const ytdlp = spawn("yt-dlp", [
+        track.url,
+        "-o",
+        "-",
+        "-f",
+        "bestaudio",
+        "--no-check-certificates",
+        "--no-warnings",
+        "--prefer-free-formats",
+        "--add-header",
+        "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "--add-header",
+        "Accept-Language:en-US,en;q=0.9",
+      ])
+
+      ytdlp.stderr.on("data", (data) => {
+        console.error("[v0] yt-dlp stderr:", data.toString())
       })
 
-      this.currentResource = createAudioResource(stream.stdout!, {
+      this.currentResource = createAudioResource(ytdlp.stdout, {
         inputType: StreamType.Arbitrary,
         inlineVolume: true,
       })
@@ -229,20 +236,28 @@ export class MusicPlayer {
     try {
       console.log("[v0] Seeking to:", seconds, "seconds")
 
-      const stream = youtubedl.exec(track.url, {
-        output: "-",
-        format: "bestaudio",
-        noCheckCertificates: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        addHeader: [
-          "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Accept-Language:en-US,en;q=0.9",
-        ],
-        downloadSections: `*${seconds}-inf`,
+      const ytdlp = spawn("yt-dlp", [
+        track.url,
+        "-o",
+        "-",
+        "-f",
+        "bestaudio",
+        "--no-check-certificates",
+        "--no-warnings",
+        "--prefer-free-formats",
+        "--add-header",
+        "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "--add-header",
+        "Accept-Language:en-US,en;q=0.9",
+        "--download-sections",
+        `*${seconds}-inf`,
+      ])
+
+      ytdlp.stderr.on("data", (data) => {
+        console.error("[v0] yt-dlp stderr:", data.toString())
       })
 
-      this.currentResource = createAudioResource(stream.stdout!, {
+      this.currentResource = createAudioResource(ytdlp.stdout, {
         inputType: StreamType.Arbitrary,
         inlineVolume: true,
       })
