@@ -5,13 +5,6 @@ RUN apk add --no-cache \
     py3-pip \
     ffmpeg \
     libsodium-dev \
-    chromium \
-    chromium-chromedriver \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
     curl && \
     python3 -m pip install --no-cache-dir --break-system-packages yt-dlp && \
     rm -rf /var/cache/apk/* /tmp/* /root/.cache /root/.npm
@@ -73,9 +66,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-RUN mkdir -p /app/data /tmp/ytdl /home/nextjs/.config/chromium/Default && \
-    chown -R nextjs:nodejs /app/data /tmp/ytdl /home/nextjs && \
-    su nextjs -c "chromium-browser --headless --disable-gpu --no-sandbox --disable-dev-shm-usage --user-data-dir=/home/nextjs/.config/chromium --no-first-run --disable-extensions --disable-background-networking about:blank" || true
+RUN mkdir -p /app/data /tmp/ytdl && \
+    chown -R nextjs:nodejs /app/data /tmp/ytdl
 
 USER nextjs
 
