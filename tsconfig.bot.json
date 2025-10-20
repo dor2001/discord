@@ -3,7 +3,7 @@
     "module": "ES2022",
     "moduleResolution": "Bundler",
     "target": "ES2022",
-    "outDir": "./dist/bot",
+    "outDir": "./dist",
     "rootDir": ".",
     "declaration": false,
     "sourceMap": false,

@@ -53,11 +53,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nextjs:nodejs /app/healthcheck.js ./healthcheck.js
 COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/discord.js ./node_modules/discord.js
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@discordjs ./node_modules/@discordjs
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/libsodium-wrappers ./node_modules/libsodium-wrappers
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prism-media ./node_modules/prism-media
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
 
