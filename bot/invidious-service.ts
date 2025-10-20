@@ -12,17 +12,16 @@ interface InvidiousVideo {
 }
 
 export class InvidiousService {
-private instances = [
-  "https://invidious.lunar.icu",
-  "https://invidious.privacydev.net",
-  "https://inv.bp.projectsegfau.lt",
-  "https://inv.tux.pizza",
-  "https://invidious.flokinet.to",
-  "https://inv.nadeko.net",
-  "https://yt.drgns.space",
-  "https://invidious.jing.rocks",
-  "https://inv.odyssey346.dev",
-]
+  private instances = [
+    "https://invidious.io.lol",
+    "https://iv.ggtyler.dev",
+    "https://invidious.private.coffee",
+    "https://yt.artemislena.eu",
+    "https://invidious.slipfox.xyz",
+    "https://invidious.protokolla.fi",
+    "https://inv.tux.pizza",
+    "https://invidious.perennialte.ch",
+  ]
 
   async search(query: string): Promise<any[]> {
     console.log("[v0] Searching with Invidious:", query)
