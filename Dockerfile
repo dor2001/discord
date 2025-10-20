@@ -5,7 +5,10 @@ RUN apk add --no-cache \
     py3-pip \
     ffmpeg \
     libsodium-dev \
-    curl && \
+    curl \
+    firefox \
+    dbus \
+    xvfb && \
     python3 -m pip install --no-cache-dir --break-system-packages yt-dlp && \
     rm -rf /var/cache/apk/* /tmp/* /root/.cache /root/.npm
 
@@ -60,7 +63,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
+RUN mkdir -p /app/data /home/nextjs/.mozilla/firefox && \
+    chown -R nextjs:nodejs /app/data /home/nextjs
 
 USER nextjs
 
@@ -68,6 +72,7 @@ EXPOSE 3000 3001
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV DISPLAY=:99
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3000/api/bot/health || exit 1
