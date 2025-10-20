@@ -1,12 +1,12 @@
 import http from "http"
 import { URL } from "url"
 import { getBotInstance } from "./index.js"
-import { InvidiousService } from "./invidious-service.js"
+import { YtDlpService } from "./ytdlp-service.js"
 import { YouTubeAPIService } from "./youtube-api-service.js"
 import { config } from "./config.js"
 
 const PORT = 3001
-const invidiousService = new InvidiousService()
+const ytdlpService = new YtDlpService()
 const youtubeApiService = config.youtubeApiKey ? new YouTubeAPIService() : null
 
 export function startHttpServer() {
@@ -36,12 +36,12 @@ export function startHttpServer() {
               console.log("[v0] Using YouTube Data API v3")
               results = await youtubeApiService.search(query)
             } catch (error) {
-              console.log("[v0] YouTube API failed, falling back to Invidious")
-              results = await invidiousService.search(query)
+              console.log("[v0] YouTube API failed, falling back to yt-dlp")
+              results = await ytdlpService.search(query)
             }
           } else {
-            console.log("[v0] No YouTube API key, using Invidious")
-            results = await invidiousService.search(query)
+            console.log("[v0] No YouTube API key, using yt-dlp")
+            results = await ytdlpService.search(query)
           }
 
           res.writeHead(200)
