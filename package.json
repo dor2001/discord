@@ -13,6 +13,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@discordjs/opus": "^0.9.0",
     "@discordjs/voice": "latest",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-scroll-area": "^1.2.2",
@@ -35,6 +36,7 @@
     "path": "latest",
     "react": "^19",
     "react-dom": "^19",
+    "sodium-native": "^4.3.1",
     "swr": "latest",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",

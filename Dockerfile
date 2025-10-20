@@ -1,6 +1,17 @@
 FROM node:22-alpine AS base
 
-RUN apk add --no-cache python3 py3-pip ffmpeg libsodium-dev curl && \
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    ffmpeg \
+    libsodium-dev \
+    curl \
+    build-base \
+    g++ \
+    make \
+    libtool \
+    autoconf \
+    automake && \
     python3 -m pip install --no-cache-dir --break-system-packages yt-dlp && \
     rm -rf /var/cache/apk/* /tmp/* /root/.cache /root/.npm
 

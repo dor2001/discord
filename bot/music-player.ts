@@ -6,6 +6,7 @@ import {
   type VoiceConnection,
   type AudioResource,
   type PlayerSubscription,
+  StreamType,
 } from "@discordjs/voice"
 import { spawn } from "child_process"
 import { botEventEmitter } from "../lib/event-emitter.js"
@@ -107,14 +108,24 @@ export class MusicPlayer {
         "-o",
         "-",
         "--extractor-args",
-        "youtube:player_client=android",
+        "youtube:player_client=android,web",
+        "--user-agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "--add-header",
+        "Accept-Language:en-US,en;q=0.9",
         "--no-check-certificate",
+        "--no-warnings",
+        "--quiet",
         track.url,
       ])
 
       const ffmpeg = spawn("ffmpeg", [
         "-i",
         "pipe:0",
+        "-analyzeduration",
+        "0",
+        "-loglevel",
+        "0",
         "-f",
         "s16le",
         "-ar",
@@ -137,7 +148,7 @@ export class MusicPlayer {
       })
 
       this.currentResource = createAudioResource(ffmpeg.stdout, {
-        inputType: "s16le" as any,
+        inputType: StreamType.Raw,
       })
 
       this.audioPlayer.play(this.currentResource)
@@ -249,8 +260,14 @@ export class MusicPlayer {
         "-o",
         "-",
         "--extractor-args",
-        "youtube:player_client=android",
+        "youtube:player_client=android,web",
+        "--user-agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "--add-header",
+        "Accept-Language:en-US,en;q=0.9",
         "--no-check-certificate",
+        "--no-warnings",
+        "--quiet",
         track.url,
       ])
 
@@ -259,6 +276,10 @@ export class MusicPlayer {
         seconds.toString(),
         "-i",
         "pipe:0",
+        "-analyzeduration",
+        "0",
+        "-loglevel",
+        "0",
         "-f",
         "s16le",
         "-ar",
@@ -273,7 +294,7 @@ export class MusicPlayer {
       ytdlp.stdout.pipe(ffmpeg.stdin)
 
       this.currentResource = createAudioResource(ffmpeg.stdout, {
-        inputType: "s16le" as any,
+        inputType: StreamType.Raw,
       })
 
       this.audioPlayer.play(this.currentResource)
