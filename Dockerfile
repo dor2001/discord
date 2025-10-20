@@ -5,13 +5,7 @@ RUN apk add --no-cache \
     py3-pip \
     ffmpeg \
     libsodium-dev \
-    curl \
-    build-base \
-    g++ \
-    make \
-    libtool \
-    autoconf \
-    automake && \
+    curl && \
     python3 -m pip install --no-cache-dir --break-system-packages yt-dlp && \
     rm -rf /var/cache/apk/* /tmp/* /root/.cache /root/.npm
 
