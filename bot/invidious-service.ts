@@ -12,12 +12,17 @@ interface InvidiousVideo {
 }
 
 export class InvidiousService {
-  private instances = [
-    "https://inv.nadeko.net",
-    "https://invidious.privacyredirect.com",
-    "https://invidious.fdn.fr",
-    "https://invidious.nerdvpn.de",
-  ]
+private instances = [
+  "https://invidious.lunar.icu",
+  "https://invidious.privacydev.net",
+  "https://inv.bp.projectsegfau.lt",
+  "https://inv.tux.pizza",
+  "https://invidious.flokinet.to",
+  "https://inv.nadeko.net",
+  "https://yt.drgns.space",
+  "https://invidious.jing.rocks",
+  "https://inv.odyssey346.dev",
+]
 
   async search(query: string): Promise<any[]> {
     console.log("[v0] Searching with Invidious:", query)
@@ -26,12 +31,18 @@ export class InvidiousService {
     for (const instance of this.instances) {
       try {
         const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000)
+
         const response = await fetch(url, {
           headers: { "User-Agent": "Mozilla/5.0" },
+          signal: controller.signal,
         })
 
+        clearTimeout(timeoutId)
+
         if (!response.ok) {
-          console.log(`[v0] Instance ${instance} failed, trying next...`)
+          console.log(`[v0] Instance ${instance} returned ${response.status}, trying next...`)
           continue
         }
 
