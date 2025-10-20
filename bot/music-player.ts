@@ -6,9 +6,8 @@ import {
   type VoiceConnection,
   type AudioResource,
   type PlayerSubscription,
-  StreamType,
 } from "@discordjs/voice"
-import { spawn } from "child_process"
+import * as play from "play-dl"
 import { botEventEmitter } from "../lib/event-emitter.js"
 
 export interface Track {
@@ -102,57 +101,18 @@ export class MusicPlayer {
       this.currentPosition = 0
       this.startTime = Date.now()
 
-      const ytdlp = spawn("yt-dlp", [
-        "-f",
-        "bestaudio",
-        "-o",
-        "-",
-        "--extractor-args",
-        "youtube:player_client=android,ios,web_creator,tv_embedded",
-        "--user-agent",
-        "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        "--add-header",
-        "Accept-Language:en-US,en;q=0.9",
-        "--geo-bypass",
-        "--age-limit",
-        "21",
-        "--no-check-certificate",
-        "--no-warnings",
-        "--quiet",
-        track.url,
-      ])
-
-      const ffmpeg = spawn("ffmpeg", [
-        "-i",
-        "pipe:0",
-        "-analyzeduration",
-        "0",
-        "-loglevel",
-        "0",
-        "-f",
-        "s16le",
-        "-ar",
-        "48000",
-        "-ac",
-        "2",
-        "-af",
-        `volume=${this.volume / 100}`,
-        "pipe:1",
-      ])
-
-      ytdlp.stdout.pipe(ffmpeg.stdin)
-
-      ytdlp.stderr.on("data", (data) => {
-        console.error("[v0] yt-dlp error:", data.toString())
+      const stream = await play.stream(track.url, {
+        quality: 2, // High quality audio
       })
 
-      ffmpeg.stderr.on("data", (data) => {
-        console.error("[v0] ffmpeg error:", data.toString())
+      this.currentResource = createAudioResource(stream.stream, {
+        inputType: stream.type,
+        inlineVolume: true,
       })
 
-      this.currentResource = createAudioResource(ffmpeg.stdout, {
-        inputType: StreamType.Raw,
-      })
+      if (this.currentResource.volume) {
+        this.currentResource.volume.setVolume(this.volume / 100)
+      }
 
       this.audioPlayer.play(this.currentResource)
       this.isPaused = false
@@ -219,6 +179,9 @@ export class MusicPlayer {
 
   public setVolume(volume: number) {
     this.volume = Math.max(0, Math.min(100, volume))
+    if (this.currentResource?.volume) {
+      this.currentResource.volume.setVolume(this.volume / 100)
+    }
     this.emitStateUpdate()
   }
 
@@ -257,51 +220,19 @@ export class MusicPlayer {
     try {
       console.log("[v0] Seeking to:", seconds, "seconds")
 
-      const ytdlp = spawn("yt-dlp", [
-        "-f",
-        "bestaudio",
-        "-o",
-        "-",
-        "--extractor-args",
-        "youtube:player_client=android,ios,web_creator,tv_embedded",
-        "--user-agent",
-        "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        "--add-header",
-        "Accept-Language:en-US,en;q=0.9",
-        "--geo-bypass",
-        "--age-limit",
-        "21",
-        "--no-check-certificate",
-        "--no-warnings",
-        "--quiet",
-        track.url,
-      ])
-
-      const ffmpeg = spawn("ffmpeg", [
-        "-ss",
-        seconds.toString(),
-        "-i",
-        "pipe:0",
-        "-analyzeduration",
-        "0",
-        "-loglevel",
-        "0",
-        "-f",
-        "s16le",
-        "-ar",
-        "48000",
-        "-ac",
-        "2",
-        "-af",
-        `volume=${this.volume / 100}`,
-        "pipe:1",
-      ])
-
-      ytdlp.stdout.pipe(ffmpeg.stdin)
-
-      this.currentResource = createAudioResource(ffmpeg.stdout, {
-        inputType: StreamType.Raw,
+      const stream = await play.stream(track.url, {
+        quality: 2,
+        seek: seconds,
       })
+
+      this.currentResource = createAudioResource(stream.stream, {
+        inputType: stream.type,
+        inlineVolume: true,
+      })
+
+      if (this.currentResource.volume) {
+        this.currentResource.volume.setVolume(this.volume / 100)
+      }
 
       this.audioPlayer.play(this.currentResource)
       this.startTime = Date.now() - seconds * 1000

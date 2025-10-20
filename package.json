@@ -34,6 +34,7 @@
     "next": "15.2.4",
     "opusscript": "^0.1.1",
     "path": "latest",
+    "play-dl": "latest",
     "react": "^19",
     "react-dom": "^19",
     "swr": "latest",
