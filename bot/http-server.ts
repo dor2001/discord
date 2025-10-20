@@ -1,7 +1,7 @@
 import http from "http"
 import { URL } from "url"
 import { getBotInstance } from "./index.js"
-import { pipedService } from "./piped-service.js"
+import { youtubeService } from "./youtube-service.js"
 
 const PORT = 3001
 
@@ -26,7 +26,7 @@ export function startHttpServer() {
         }
 
         try {
-          const results = await pipedService.search(query)
+          const results = await youtubeService.search(query)
           res.writeHead(200)
           res.end(JSON.stringify({ results }))
         } catch (error) {
@@ -54,6 +54,49 @@ export function startHttpServer() {
         } else {
           res.writeHead(404)
           res.end(JSON.stringify({ error: "No player found" }))
+        }
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/join") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", async () => {
+          try {
+            const { channelId } = JSON.parse(body)
+            const success = await bot.joinVoiceChannel(guildId, channelId)
+
+            if (success) {
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true }))
+            } else {
+              res.writeHead(400)
+              res.end(JSON.stringify({ error: "Failed to join channel" }))
+            }
+          } catch (error) {
+            console.error("[v0] Join error:", error)
+            res.writeHead(500)
+            res.end(JSON.stringify({ error: "Internal server error" }))
+          }
+        })
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/leave") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        const success = bot.leaveVoiceChannel(guildId)
+
+        if (success) {
+          res.writeHead(200)
+          res.end(JSON.stringify({ success: true }))
+        } else {
+          res.writeHead(400)
+          res.end(JSON.stringify({ error: "Not in voice channel" }))
         }
         return
       }

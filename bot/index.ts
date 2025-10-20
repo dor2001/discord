@@ -3,6 +3,8 @@ import type { VoiceConnection } from "@discordjs/voice"
 import type { MusicPlayer } from "./music-player.js"
 import { config } from "./config.js"
 import { saveState } from "./state-manager.js"
+import { joinVoiceChannel } from "@discordjs/voice"
+import { ChannelType } from "discord.js"
 
 export interface GuildData {
   guildId: string
@@ -153,6 +155,79 @@ export class MusicBot {
         type: channel.type,
         userCount: channel.isVoiceBased() ? channel.members.size : 0,
       }))
+  }
+
+  public async joinVoiceChannel(guildId: string, channelId: string): Promise<boolean> {
+    try {
+      console.log("[v0] Attempting to join voice channel:", channelId, "in guild:", guildId)
+
+      const guild = this.client.guilds.cache.get(guildId)
+      if (!guild) {
+        console.error("[v0] Guild not found:", guildId)
+        return false
+      }
+
+      const channel = guild.channels.cache.get(channelId)
+      if (!channel || channel.type !== ChannelType.GuildVoice) {
+        console.error("[v0] Voice channel not found or invalid:", channelId)
+        return false
+      }
+
+      const guildData = this.guilds.get(guildId)
+      if (!guildData) {
+        console.error("[v0] Guild data not found:", guildId)
+        return false
+      }
+
+      // Leave existing connection if any
+      if (guildData.connection) {
+        guildData.connection.destroy()
+      }
+
+      // Join the voice channel
+      const connection = joinVoiceChannel({
+        channelId: channel.id,
+        guildId: guild.id,
+        adapterCreator: guild.voiceAdapterCreator,
+      })
+
+      guildData.voiceChannelId = channelId
+      guildData.connection = connection
+
+      console.log("[v0] Successfully joined voice channel:", channel.name)
+      this.saveCurrentState()
+
+      return true
+    } catch (error) {
+      console.error("[v0] Failed to join voice channel:", error)
+      return false
+    }
+  }
+
+  public leaveVoiceChannel(guildId: string): boolean {
+    try {
+      const guildData = this.guilds.get(guildId)
+      if (!guildData || !guildData.connection) {
+        return false
+      }
+
+      guildData.connection.destroy()
+      guildData.voiceChannelId = null
+      guildData.connection = null
+
+      if (guildData.player) {
+        guildData.player.destroy()
+        guildData.player = null
+      }
+
+      console.log("[v0] Left voice channel in guild:", guildId)
+      this.saveCurrentState()
+
+      return true
+    } catch (error) {
+      console.error("[v0] Failed to leave voice channel:", error)
+      return false
+    }
   }
 }
 

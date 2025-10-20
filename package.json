@@ -39,7 +39,8 @@
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.19.2",
     "tw-animate-css": "latest",
-    "url": "latest"
+    "url": "latest",
+    "util": "latest"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
