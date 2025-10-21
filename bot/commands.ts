@@ -1,37 +1,28 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js"
 import { getBotInstance } from "./index.js"
 import { YtDlpService } from "./ytdlp-service.js"
-import { MusicPlayer } from "./music-player.js"
+import { DistubePlayer } from "./distube-player.js"
 
 const ytdlpService = new YtDlpService()
 
 export const commands = [
   new SlashCommandBuilder().setName("join").setDescription("Join a voice channel"),
-
   new SlashCommandBuilder().setName("leave").setDescription("Leave the voice channel"),
-
   new SlashCommandBuilder()
     .setName("play")
     .setDescription("Play a song from YouTube")
     .addStringOption((option) => option.setName("query").setDescription("Song name or URL").setRequired(true)),
-
   new SlashCommandBuilder().setName("pause").setDescription("Pause the current song"),
-
   new SlashCommandBuilder().setName("resume").setDescription("Resume the current song"),
-
   new SlashCommandBuilder().setName("skip").setDescription("Skip to the next song"),
-
   new SlashCommandBuilder().setName("stop").setDescription("Stop the player and clear the queue"),
-
   new SlashCommandBuilder().setName("queue").setDescription("Show the song queue"),
-
   new SlashCommandBuilder()
     .setName("volume")
     .setDescription("Change the volume")
     .addIntegerOption((option) =>
       option.setName("level").setDescription("Volume level (0-100)").setRequired(true).setMinValue(0).setMaxValue(100),
     ),
-
   new SlashCommandBuilder()
     .setName("loop")
     .setDescription("Change loop mode")
@@ -46,14 +37,11 @@ export const commands = [
           { name: "Queue", value: "queue" },
         ),
     ),
-
   new SlashCommandBuilder()
     .setName("shuffle")
     .setDescription("Toggle shuffle")
     .addBooleanOption((option) => option.setName("enabled").setDescription("Enable shuffle").setRequired(true)),
-
   new SlashCommandBuilder().setName("nowplaying").setDescription("Show the current song"),
-
   new SlashCommandBuilder()
     .setName("speed")
     .setDescription("Change playback speed")
@@ -152,21 +140,14 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
         const query = interaction.options.getString("query", true)
 
         try {
-          const results = await ytdlpService.search(query)
-
-          if (results.length === 0) {
-            await interaction.editReply("❌ לא נמצאו תוצאות")
-            return
-          }
-
-          const track = results[0]
-
           if (!guildData.player) {
-            guildData.player = new MusicPlayer(guildData.connection, guildId)
+            const client = bot.getClient()
+            guildData.player = new DistubePlayer(client, guildId)
           }
 
-          await guildData.player.addToQueue(track)
-          await interaction.editReply(`✅ נוסף לתור: **${track.title}** (${track.author})`)
+          console.log("[v0] Playing with DisTube:", query)
+          await guildData.player.play(voiceChannel, query)
+          await interaction.editReply(`✅ מנגן: **${query}**`)
         } catch (error) {
           console.error("[v0] Play command error:", error)
           await interaction.editReply("❌ שגיאה בחיפוש או הוספת השיר")

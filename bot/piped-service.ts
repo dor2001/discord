@@ -12,9 +12,11 @@ interface PipedSearchResult {
 }
 
 const PIPED_INSTANCES = [
-  "https://piped.video",
-  "https://api.piped.private.coffee",
-  "https://piped.kavin.rocks",
+  "https://pipedapi.kavin.rocks",
+  "https://pipedapi-libre.kavin.rocks",
+  "https://piped-api.garudalinux.org",
+  "https://pipedapi.adminforge.de",
+  "https://api.piped.projectsegfau.lt",
 ]
 
 export class PipedService {

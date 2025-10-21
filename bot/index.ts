@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Collection, REST, Routes } from "discord.js"
 import type { VoiceConnection } from "@discordjs/voice"
-import type { MusicPlayer } from "./music-player.js"
+import { DistubePlayer } from "./distube-player.js"
 import { config } from "./config.js"
 import { saveState } from "./state-manager.js"
 import { joinVoiceChannel } from "@discordjs/voice"
@@ -12,7 +12,7 @@ export interface GuildData {
   guildName: string
   voiceChannelId: string | null
   voiceChannelLocked: boolean
-  player: MusicPlayer | null
+  player: DistubePlayer | null
   connection: VoiceConnection | null
 }
 
@@ -198,6 +198,10 @@ export class MusicBot {
         return false
       }
 
+      if (!guildData.player) {
+        guildData.player = new DistubePlayer(this.client, guildId)
+      }
+
       // Leave existing connection if any
       if (guildData.connection) {
         guildData.connection.destroy()
@@ -247,6 +251,10 @@ export class MusicBot {
       console.error("[v0] Failed to leave voice channel:", error)
       return false
     }
+  }
+
+  public getClient(): Client {
+    return this.client
   }
 }
 

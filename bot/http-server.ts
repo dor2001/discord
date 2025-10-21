@@ -90,15 +90,25 @@ export function startHttpServer() {
             }
 
             if (!guildData.player) {
-              console.log("[v0] Creating new music player for guild:", guildId)
-              const { MusicPlayer } = await import("./music-player.js")
-              guildData.player = new MusicPlayer(guildData.connection, guildId)
+              console.log("[v0] Creating new DisTube player for guild:", guildId)
+              const { DistubePlayer } = await import("./distube-player.js")
+              const client = bot.getClient()
+              guildData.player = new DistubePlayer(client, guildId)
             }
 
-            console.log("[v0] Adding track to queue:", track.title)
-            await guildData.player.addToQueue(track)
+            console.log("[v0] Playing track with DisTube:", track.title)
+            const guild = bot.getClient().guilds.cache.get(guildId)
+            const voiceChannel = guild?.channels.cache.get(guildData.voiceChannelId!)
+
+            if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+              res.writeHead(400)
+              res.end(JSON.stringify({ error: "Voice channel not found" }))
+              return
+            }
+
+            await guildData.player.play(voiceChannel, track.url || track.title)
             const status = guildData.player.getStatus()
-            console.log("[v0] Track added successfully, queue size:", status.queue.length)
+            console.log("[v0] Track playing successfully")
 
             res.writeHead(200)
             res.end(JSON.stringify({ success: true, status }))
