@@ -2,7 +2,6 @@ import { DisTube } from "distube"
 import { YouTubePlugin } from "@distube/youtube"
 import type { Client, VoiceBasedChannel } from "discord.js"
 import { botEventEmitter } from "../lib/event-emitter.js"
-import { config } from "../lib/config.js"
 
 export interface Track {
   id: string
@@ -28,29 +27,42 @@ export class DistubePlayer {
   constructor(client: Client, guildId: string) {
     this.guildId = guildId
 
-    const ytdlOptions: any = {
-      quality: "highestaudio",
-      filter: "audioonly",
-      highWaterMark: 1 << 25,
-    }
+    const cookiesPath = "./youtube-cookies.txt"
+    let cookies: string | undefined
 
-    // Add cookies if provided via environment variable
-    if (config.youtubeCookies) {
-      ytdlOptions.requestOptions = {
-        headers: {
-          cookie: config.youtubeCookies,
-        },
+    try {
+      const fs = require("fs")
+      if (fs.existsSync(cookiesPath)) {
+        cookies = fs.readFileSync(cookiesPath, "utf-8")
+        console.log("[v0] Loaded YouTube cookies from file")
+      } else {
+        console.warn("[v0] YouTube cookies file not found at:", cookiesPath)
+        console.warn("[v0] Playback may fail due to bot detection")
       }
-      console.log("[v0] Using YouTube cookies for authentication")
-    } else {
-      console.warn("[v0] No YouTube cookies provided - playback may fail due to bot detection")
-      console.warn("[v0] Set YOUTUBE_COOKIES environment variable to fix this")
+    } catch (error) {
+      console.error("[v0] Error reading cookies file:", error)
     }
 
     this.distube = new DisTube(client, {
       plugins: [
         new YouTubePlugin({
-          cookies: config.youtubeCookies ? [{ name: "cookie", value: config.youtubeCookies }] : undefined,
+          cookies: cookies
+            ? cookies
+                .split("\n")
+                .filter((line) => line && !line.startsWith("#"))
+                .map((line) => {
+                  const parts = line.split("\t")
+                  return {
+                    domain: parts[0],
+                    flag: parts[1] === "TRUE",
+                    path: parts[2],
+                    secure: parts[3] === "TRUE",
+                    expiration: Number.parseInt(parts[4]),
+                    name: parts[5],
+                    value: parts[6],
+                  }
+                })
+            : undefined,
         }),
       ],
     })
