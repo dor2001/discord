@@ -405,14 +405,15 @@ export function startHttpServer() {
         req.on("end", async () => {
           try {
             const { channelId } = JSON.parse(body)
-            const success = await bot.joinVoiceChannel(guildId, channelId)
-
-            if (success) {
+            const guildData = bot.getGuildData(guildId)
+            if (guildData) {
+              guildData.voiceChannelId = channelId
+              console.log("[v0] Voice channel set for guild:", guildId, "channel:", channelId)
               res.writeHead(200)
               res.end(JSON.stringify({ success: true }))
             } else {
-              res.writeHead(400)
-              res.end(JSON.stringify({ error: "Failed to join channel" }))
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "Guild not found" }))
             }
           } catch (error) {
             console.error("[v0] Join error:", error)
@@ -425,9 +426,10 @@ export function startHttpServer() {
 
       if (path.startsWith("/guild/") && path.endsWith("/leave") && req.method === "POST") {
         const guildId = path.split("/")[2]
-        const success = bot.leaveVoiceChannel(guildId)
-
-        if (success) {
+        const guildData = bot.getGuildData(guildId)
+        if (guildData?.player) {
+          guildData.player.stop()
+          guildData.voiceChannelId = null
           res.writeHead(200)
           res.end(JSON.stringify({ success: true }))
         } else {
