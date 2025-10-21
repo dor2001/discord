@@ -83,7 +83,7 @@ export function startHttpServer() {
               res.end(
                 JSON.stringify({
                   error: "Bot not in voice channel",
-                  suggestion: "Please join a voice channel first or use /join command",
+                  message: "הבוט לא נמצא בערוץ קולי. השתמש ב-/join או בחר ערוץ קולי בדשבורד",
                 }),
               )
               return
@@ -424,6 +424,34 @@ export function startHttpServer() {
           res.writeHead(400)
           res.end(JSON.stringify({ error: "Not in voice channel" }))
         }
+        return
+      }
+
+      if (path.startsWith("/guild/") && path.endsWith("/speed") && req.method === "POST") {
+        const guildId = path.split("/")[2]
+        let body = ""
+
+        req.on("data", (chunk) => {
+          body += chunk.toString()
+        })
+
+        req.on("end", () => {
+          try {
+            const { speed } = JSON.parse(body)
+            const guildData = bot.getGuildData(guildId)
+            if (guildData?.player) {
+              guildData.player.setPlaybackSpeed(speed)
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true, status: guildData.player.getStatus() }))
+            } else {
+              res.writeHead(404)
+              res.end(JSON.stringify({ error: "No player found" }))
+            }
+          } catch (error) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ error: "Invalid request" }))
+          }
+        })
         return
       }
 

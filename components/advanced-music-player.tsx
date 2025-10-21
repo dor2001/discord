@@ -22,6 +22,7 @@ import {
   GripVertical,
   Clock,
   Music2,
+  Gauge,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -48,6 +49,7 @@ interface PlayerStatus {
   loopMode: "off" | "track" | "queue"
   shuffleEnabled: boolean
   volume: number
+  playbackSpeed: number // Added playback speed to interface
 }
 
 interface AdvancedMusicPlayerProps {
@@ -64,7 +66,7 @@ export function AdvancedMusicPlayer({ guildId, guildData, mutate }: AdvancedMusi
   const [seekPosition, setSeekPosition] = useState(0)
   const [isSeeking, setIsSeeking] = useState(false)
   const [playerStatus, setPlayerStatus] = useState<PlayerStatus | null>(null)
-  const [playbackSpeed, setPlaybackSpeed] = useState(1)
+  const [playbackSpeed, setPlaybackSpeed] = useState(1) // Added playback speed state
   const eventSourceRef = useRef<EventSource | null>(null)
 
   const guild = guildData?.guild
@@ -113,6 +115,7 @@ export function AdvancedMusicPlayer({ guildId, guildData, mutate }: AdvancedMusi
         setPlayerStatus(data.player)
         if (data.player) {
           setVolume(data.player.volume)
+          setPlaybackSpeed(data.player.playbackSpeed) // Set playback speed from fetched data
           if (!isSeeking) {
             setSeekPosition(data.player.currentPosition)
           }
@@ -143,14 +146,20 @@ export function AdvancedMusicPlayer({ guildId, guildData, mutate }: AdvancedMusi
 
     const interval = setInterval(() => {
       setSeekPosition((prev) => {
-        const newPos = prev + 1
+        const newPos = prev + playerStatus.playbackSpeed // Adjust seek position based on playback speed
         const maxPos = playerStatus?.currentTrack?.track?.duration || 0
         return newPos <= maxPos ? newPos : prev
       })
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [playerStatus?.isPlaying, playerStatus?.isPaused, playerStatus?.currentTrack, isSeeking])
+  }, [
+    playerStatus?.isPlaying,
+    playerStatus?.isPaused,
+    playerStatus?.currentTrack,
+    isSeeking,
+    playerStatus?.playbackSpeed,
+  ])
 
   const handleJoinVoice = async () => {
     if (!selectedChannel) {
@@ -263,6 +272,18 @@ export function AdvancedMusicPlayer({ guildId, guildData, mutate }: AdvancedMusi
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ index }),
     })
+    fetchPlayerStatus()
+  }
+
+  const handleSpeedChange = async (value: string) => {
+    const speed = Number.parseFloat(value)
+    setPlaybackSpeed(speed)
+    await fetch(`/api/bot/guilds/${guildId}/speed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ speed }),
+    })
+    toast({ title: "מהירות השמעה", description: `שונתה ל-${speed}x` })
     fetchPlayerStatus()
   }
 
@@ -413,6 +434,29 @@ export function AdvancedMusicPlayer({ guildId, guildData, mutate }: AdvancedMusi
                   <Volume2 className="h-5 w-5 text-muted-foreground" />
                   <Slider value={[volume]} onValueChange={handleVolumeChange} max={100} step={1} className="flex-1" />
                   <span className="text-sm font-medium w-12 text-left tabular-nums">{volume}%</span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <Gauge className="h-5 w-5 text-muted-foreground" />
+                  <Select
+                    value={playbackSpeed.toString()}
+                    onValueChange={handleSpeedChange}
+                    disabled={!playerStatus?.isPlaying}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0.5">0.5x (איטי)</SelectItem>
+                      <SelectItem value="0.75">0.75x</SelectItem>
+                      <SelectItem value="1">1.0x (רגיל)</SelectItem>
+                      <SelectItem value="1.25">1.25x</SelectItem>
+                      <SelectItem value="1.5">1.5x</SelectItem>
+                      <SelectItem value="1.75">1.75x</SelectItem>
+                      <SelectItem value="2">2.0x (מהיר)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm font-medium w-12 text-left tabular-nums">{playbackSpeed}x</span>
                 </div>
 
                 <div className="flex items-center justify-center gap-3">

@@ -53,19 +53,31 @@ export const commands = [
     .addBooleanOption((option) => option.setName("enabled").setDescription("Enable shuffle").setRequired(true)),
 
   new SlashCommandBuilder().setName("nowplaying").setDescription("Show the current song"),
+
+  new SlashCommandBuilder()
+    .setName("speed")
+    .setDescription("Change playback speed")
+    .addNumberOption((option) =>
+      option
+        .setName("rate")
+        .setDescription("Playback speed (0.5x - 2.0x)")
+        .setRequired(true)
+        .setMinValue(0.5)
+        .setMaxValue(2.0),
+    ),
 ]
 
 export async function handleCommand(interaction: ChatInputCommandInteraction) {
   const bot = getBotInstance()
   const guildId = interaction.guildId
   if (!guildId) {
-    await interaction.reply({ content: "❌ Command available only in servers", ephemeral: true })
+    await interaction.reply({ content: "❌ הפקודה זמינה רק בשרתים", ephemeral: true })
     return
   }
 
   const guildData = bot.getGuildData(guildId)
   if (!guildData) {
-    await interaction.reply({ content: "❌ Error: No data found for the server", ephemeral: true })
+    await interaction.reply({ content: "❌ שגיאה: לא נמצא מידע עבור השרת", ephemeral: true })
     return
   }
 
@@ -76,7 +88,12 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
         const voiceChannel = member?.voice?.channel
 
         if (!voiceChannel) {
-          await interaction.reply({ content: "❌ You need to be in a voice channel!", ephemeral: true })
+          await interaction.reply({ content: "❌ אתה צריך להיות בערוץ קולי!", ephemeral: true })
+          return
+        }
+
+        if (guildData.connection && guildData.voiceChannelId === voiceChannel.id) {
+          await interaction.reply({ content: "✅ אני כבר בערוץ הקולי הזה!", ephemeral: true })
           return
         }
 
@@ -84,38 +101,61 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
         const success = await bot.joinVoiceChannel(guildId, voiceChannel.id)
 
         if (success) {
-          await interaction.editReply(`✅ Joined channel **${voiceChannel.name}**`)
+          await interaction.editReply(`✅ הצטרפתי לערוץ **${voiceChannel.name}**`)
         } else {
-          await interaction.editReply("❌ Failed to join the voice channel")
+          await interaction.editReply("❌ נכשל בהצטרפות לערוץ הקולי")
         }
         break
       }
 
       case "leave": {
         if (!guildData.connection) {
-          await interaction.reply({ content: "❌ I am not in a voice channel", ephemeral: true })
+          await interaction.reply({ content: "❌ אני לא בערוץ קולי", ephemeral: true })
           return
         }
 
         const success = bot.leaveVoiceChannel(guildId)
-        await interaction.reply(success ? "👋 Left the voice channel" : "❌ Failed to leave the channel")
+        await interaction.reply(success ? "👋 עזבתי את הערוץ הקולי" : "❌ נכשל בעזיבת הערוץ")
         break
       }
 
       case "play": {
-        if (!guildData.connection) {
-          await interaction.reply({ content: "❌ I am not in a voice channel! Use /join first", ephemeral: true })
+        const member = interaction.member as any
+        const voiceChannel = member?.voice?.channel
+
+        if (!voiceChannel) {
+          await interaction.reply({ content: "❌ אתה צריך להיות בערוץ קולי!", ephemeral: true })
           return
         }
 
+        if (!guildData.connection) {
+          await interaction.deferReply()
+          console.log("[v0] Bot not in voice channel, auto-joining...")
+          const joinSuccess = await bot.joinVoiceChannel(guildId, voiceChannel.id)
+
+          if (!joinSuccess) {
+            await interaction.editReply("❌ נכשל בהצטרפות לערוץ הקולי")
+            return
+          }
+
+          console.log("[v0] Successfully auto-joined voice channel")
+        } else if (guildData.voiceChannelId !== voiceChannel.id) {
+          await interaction.reply({
+            content: "❌ אני כבר בערוץ קולי אחר! השתמש ב-/leave ואז /join כדי לעבור ערוץ",
+            ephemeral: true,
+          })
+          return
+        } else {
+          await interaction.deferReply()
+        }
+
         const query = interaction.options.getString("query", true)
-        await interaction.deferReply()
 
         try {
           const results = await ytdlpService.search(query)
 
           if (results.length === 0) {
-            await interaction.editReply("❌ No results found")
+            await interaction.editReply("❌ לא נמצאו תוצאות")
             return
           }
 
@@ -126,61 +166,61 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
           }
 
           await guildData.player.addToQueue(track)
-          await interaction.editReply(`✅ Added to queue: **${track.title}** (${track.author})`)
+          await interaction.editReply(`✅ נוסף לתור: **${track.title}** (${track.author})`)
         } catch (error) {
           console.error("[v0] Play command error:", error)
-          await interaction.editReply("❌ Error in search or adding the song")
+          await interaction.editReply("❌ שגיאה בחיפוש או הוספת השיר")
         }
         break
       }
 
       case "pause": {
         if (!guildData.player) {
-          await interaction.reply({ content: "❌ No active player", ephemeral: true })
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
           return
         }
 
         guildData.player.pause()
-        await interaction.reply("⏸️ Song paused")
+        await interaction.reply("⏸️ השיר נעצר")
         break
       }
 
       case "resume": {
         if (!guildData.player) {
-          await interaction.reply({ content: "❌ No active player", ephemeral: true })
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
           return
         }
 
         guildData.player.resume()
-        await interaction.reply("▶️ Song resumed")
+        await interaction.reply("▶️ השיר נמשיך")
         break
       }
 
       case "skip": {
         if (!guildData.player) {
-          await interaction.reply({ content: "❌ No active player", ephemeral: true })
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
           return
         }
 
         guildData.player.skip()
-        await interaction.reply("⏭️ Skipped to the next song")
+        await interaction.reply("⏭️ קפץ לשיר הבא")
         break
       }
 
       case "stop": {
         if (!guildData.player) {
-          await interaction.reply({ content: "❌ No active player", ephemeral: true })
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
           return
         }
 
         guildData.player.stop()
-        await interaction.reply("⏹️ Player stopped and queue cleared")
+        await interaction.reply("⏹️ השחקן נעצר והתור נמחק")
         break
       }
 
       case "queue": {
         if (!guildData.player) {
-          await interaction.reply({ content: "❌ No active player", ephemeral: true })
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
           return
         }
 
@@ -188,24 +228,24 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
         const queue = status.queue
 
         if (!status.currentTrack && queue.length === 0) {
-          await interaction.reply("📭 Queue is empty")
+          await interaction.reply("📭 התור ריק")
           return
         }
 
         let message = ""
 
         if (status.currentTrack) {
-          message += `🎵 **Now Playing:**\n${status.currentTrack.track.title} - ${status.currentTrack.track.author}\n\n`
+          message += `🎵 **הנגן حاليا:**\n${status.currentTrack.track.title} - ${status.currentTrack.track.author}\n\n`
         }
 
         if (queue.length > 0) {
-          message += `📋 **Queue (${queue.length} songs):**\n`
+          message += `📋 **התור (${queue.length} שירים):**\n`
           queue.slice(0, 10).forEach((item, index) => {
             message += `${index + 1}. ${item.track.title} - ${item.track.author}\n`
           })
 
           if (queue.length > 10) {
-            message += `\n...and ${queue.length - 10} more songs`
+            message += `\n...ו-${queue.length - 10} שירים נוספים`
           }
         }
 
@@ -215,19 +255,19 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 
       case "volume": {
         if (!guildData.player) {
-          await interaction.reply({ content: "❌ No active player", ephemeral: true })
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
           return
         }
 
         const level = interaction.options.getInteger("level", true)
         guildData.player.setVolume(level)
-        await interaction.reply(`🔊 Volume changed to ${level}%`)
+        await interaction.reply(`🔊 مستوى الصوت שונה ל-${level}%`)
         break
       }
 
       case "loop": {
         if (!guildData.player) {
-          await interaction.reply({ content: "❌ No active player", ephemeral: true })
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
           return
         }
 
@@ -235,32 +275,32 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
         guildData.player.setLoopMode(mode)
 
         const modeText = { off: "Off", track: "Track", queue: "Queue" }
-        await interaction.reply(`🔁 Loop mode changed to ${modeText[mode]}`)
+        await interaction.reply(`🔁 מצב חזור שונה ל-${modeText[mode]}`)
         break
       }
 
       case "shuffle": {
         if (!guildData.player) {
-          await interaction.reply({ content: "❌ No active player", ephemeral: true })
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
           return
         }
 
         const enabled = interaction.options.getBoolean("enabled", true)
         guildData.player.setShuffle(enabled)
-        await interaction.reply(`🔀 Shuffle ${enabled ? "enabled" : "disabled"}`)
+        await interaction.reply(`🔀 השמירה ${enabled ? "הופעלת" : "הושבת"}`)
         break
       }
 
       case "nowplaying": {
         if (!guildData.player) {
-          await interaction.reply({ content: "❌ No active player", ephemeral: true })
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
           return
         }
 
         const status = guildData.player.getStatus()
 
         if (!status.currentTrack) {
-          await interaction.reply("❌ No song is currently playing")
+          await interaction.reply("❌ אין שיר ניגון حاليا")
           return
         }
 
@@ -280,29 +320,41 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
         }
 
         const message = `
-🎵 **Now Playing:**
+🎵 **הנגן حاليا:**
 **${track.title}**
 👤 ${track.author}
 
 ${progressBar(position, duration)}
 ⏱️ ${formatTime(position)} / ${formatTime(duration)}
 
-🔊 Volume: ${status.volume}%
-🔁 Loop: ${status.loopMode === "off" ? "Off" : status.loopMode === "track" ? "Track" : "Queue"}
-🔀 Shuffle: ${status.shuffleEnabled ? "Enabled" : "Disabled"}
-📋 Queue: ${status.queue.length} songs
+🔊 مستوى الصوت: ${status.volume}%
+🔁 חזור: ${status.loopMode === "off" ? "Off" : status.loopMode === "track" ? "Track" : "Queue"}
+🔀 השמירה: ${status.shuffleEnabled ? "הופעלת" : "הושבת"}
+📋 התור: ${status.queue.length} שירים
         `
 
         await interaction.reply(message)
+        break
+      }
+
+      case "speed": {
+        if (!guildData.player) {
+          await interaction.reply({ content: "❌ אין שחקן פעיל", ephemeral: true })
+          return
+        }
+
+        const rate = interaction.options.getNumber("rate", true)
+        guildData.player.setPlaybackSpeed(rate)
+        await interaction.reply(`⚡ מהירות השמעה שונתה ל-${rate}x`)
         break
       }
     }
   } catch (error) {
     console.error("[v0] Command error:", error)
     if (interaction.deferred) {
-      await interaction.editReply("❌ An error occurred while executing the command")
+      await interaction.editReply("❌ אירעה שגיאה בביצוע הפקודה")
     } else {
-      await interaction.reply({ content: "❌ An error occurred while executing the command", ephemeral: true })
+      await interaction.reply({ content: "❌ אירעה שגיאה בביצוע הפקודה", ephemeral: true })
     }
   }
 }

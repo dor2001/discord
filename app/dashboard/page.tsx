@@ -1,16 +1,14 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { GuildSelector } from "@/components/guild-selector"
-import { MusicPlayer } from "@/components/music-player"
+import { AdvancedMusicPlayer } from "@/components/advanced-music-player"
 import { SearchPanel } from "@/components/search-panel"
-import { QueuePanel } from "@/components/queue-panel"
 import { LogOut } from "lucide-react"
-import { usePlayerEvents } from "@/hooks/use-player-events"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
@@ -29,12 +27,6 @@ export default function DashboardPage() {
       refreshInterval: 2000,
     },
   )
-
-  const handlePlayerUpdate = useCallback(() => {
-    mutateGuildData()
-  }, [mutateGuildData])
-
-  usePlayerEvents(selectedGuildId, handlePlayerUpdate)
 
   useEffect(() => {
     if (guildsData?.guilds && guildsData.guilds.length > 0 && !selectedGuildId) {
@@ -72,12 +64,10 @@ export default function DashboardPage() {
         {selectedGuildId && (
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
-              <MusicPlayer guildId={selectedGuildId} guildData={guildData} mutate={mutateGuildData} />
+              <AdvancedMusicPlayer guildId={selectedGuildId} guildData={guildData} mutate={mutateGuildData} />
               <SearchPanel guildId={selectedGuildId} mutate={mutateGuildData} />
             </div>
-            <div>
-              <QueuePanel guildId={selectedGuildId} guildData={guildData} />
-            </div>
+            <div className="space-y-6">{/* Queue is now integrated in AdvancedMusicPlayer */}</div>
           </div>
         )}
 

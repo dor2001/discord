@@ -40,6 +40,7 @@ export class MusicPlayer {
   private guildId: string
   private currentPosition = 0
   private startTime: number | null = null
+  private playbackSpeed = 1.0
 
   constructor(
     private connection: VoiceConnection,
@@ -102,6 +103,9 @@ export class MusicPlayer {
       this.currentPosition = 0
       this.startTime = Date.now()
 
+      const filters = this.playbackSpeed !== 1.0 ? [`atempo=${this.playbackSpeed}`] : []
+      const filterArgs = filters.length > 0 ? ["--audio-filter", filters.join(",")] : []
+
       const ytdlp = spawn("yt-dlp", [
         track.url,
         "-o",
@@ -120,6 +124,7 @@ export class MusicPlayer {
         "Accept-Language:en-US,en;q=0.9",
         "--extractor-args",
         "youtube:player_client=android,web,tv_embedded",
+        ...filterArgs,
       ])
 
       ytdlp.stderr.on("data", (data) => {
@@ -214,6 +219,26 @@ export class MusicPlayer {
   public setShuffle(enabled: boolean) {
     this.shuffleEnabled = enabled
     this.emitStateUpdate()
+  }
+
+  public setPlaybackSpeed(speed: number) {
+    this.playbackSpeed = Math.max(0.5, Math.min(2.0, speed))
+
+    // If currently playing, restart with new speed
+    if (this.currentTrack && this.isPlaying()) {
+      const currentPos = this.getCurrentPosition()
+      this.playTrack(this.currentTrack.track).then(() => {
+        if (currentPos > 0) {
+          this.seek(currentPos)
+        }
+      })
+    }
+
+    this.emitStateUpdate()
+  }
+
+  public getPlaybackSpeed(): number {
+    return this.playbackSpeed
   }
 
   private emitStateUpdate() {
@@ -331,6 +356,7 @@ export class MusicPlayer {
       loopMode: this.loopMode,
       shuffleEnabled: this.shuffleEnabled,
       volume: this.volume,
+      playbackSpeed: this.playbackSpeed,
     }
   }
 
