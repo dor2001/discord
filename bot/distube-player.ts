@@ -29,7 +29,6 @@ export class DistubePlayer {
     this.distube = new DisTube(client, {
       emitNewSongOnly: false,
       savePreviousSongs: true,
-      searchSongs: 0,
       ytdlOptions: {
         quality: "highestaudio",
         highWaterMark: 1 << 25,
