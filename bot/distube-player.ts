@@ -1,4 +1,5 @@
 import { DisTube } from "distube"
+import { YouTubePlugin } from "@distube/youtube"
 import type { Client, VoiceBasedChannel } from "discord.js"
 import { botEventEmitter } from "../lib/event-emitter.js"
 
@@ -26,7 +27,9 @@ export class DistubePlayer {
   constructor(client: Client, guildId: string) {
     this.guildId = guildId
 
-    this.distube = new DisTube(client, {})
+    this.distube = new DisTube(client, {
+      plugins: [new YouTubePlugin()],
+    })
 
     this.setupEventHandlers()
   }
