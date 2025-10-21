@@ -11,22 +11,54 @@ interface PipedSearchResult {
   }>
 }
 
+const PIPED_INSTANCES = [
+  "https://piped.video",
+  "https://api.piped.private.coffee",
+  "https://piped.kavin.rocks",
+]
+
 export class PipedService {
-  private baseUrl: string
+  private instances: string[]
+  private currentInstanceIndex = 0
 
   constructor() {
-    this.baseUrl = config.pipedInstance
+    this.instances = config.pipedInstance ? [config.pipedInstance, ...PIPED_INSTANCES] : PIPED_INSTANCES
+  }
+
+  private async fetchWithFallback(path: string): Promise<any> {
+    let lastError: Error | null = null
+
+    for (let i = 0; i < this.instances.length; i++) {
+      const instance = this.instances[this.currentInstanceIndex]
+      try {
+        console.log(`[v0] Trying Piped instance: ${instance}`)
+        const response = await fetch(`${instance}${path}`, {
+          signal: AbortSignal.timeout(5000), // 5 second timeout
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        console.log(`[v0] Piped instance ${instance} succeeded`)
+        return data
+      } catch (error) {
+        console.error(`[v0] Piped instance ${instance} failed:`, error)
+        lastError = error as Error
+        // Try next instance
+        this.currentInstanceIndex = (this.currentInstanceIndex + 1) % this.instances.length
+      }
+    }
+
+    throw new Error(`All Piped instances failed. Last error: ${lastError?.message}`)
   }
 
   public async search(query: string, limit = 10): Promise<Track[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/search?q=${encodeURIComponent(query)}&filter=videos`)
-
-      if (!response.ok) {
-        throw new Error(`Piped API error: ${response.statusText}`)
-      }
-
-      const data: PipedSearchResult = await response.json()
+      const data: PipedSearchResult = await this.fetchWithFallback(
+        `/search?q=${encodeURIComponent(query)}&filter=videos`,
+      )
 
       return data.items.slice(0, limit).map((item) => ({
         id: item.url.split("=")[1] || item.url,
@@ -44,13 +76,7 @@ export class PipedService {
 
   public async getVideoInfo(videoId: string): Promise<Track | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/streams/${videoId}`)
-
-      if (!response.ok) {
-        throw new Error(`Piped API error: ${response.statusText}`)
-      }
-
-      const data = await response.json()
+      const data = await this.fetchWithFallback(`/streams/${videoId}`)
 
       return {
         id: videoId,
@@ -68,13 +94,7 @@ export class PipedService {
 
   public async getStreamUrl(videoId: string): Promise<string | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/streams/${videoId}`)
-
-      if (!response.ok) {
-        throw new Error(`Piped API error: ${response.statusText}`)
-      }
-
-      const data = await response.json()
+      const data = await this.fetchWithFallback(`/streams/${videoId}`)
 
       // Get the best audio stream
       const audioStreams = data.audioStreams || []
@@ -85,6 +105,7 @@ export class PipedService {
       // Sort by quality (bitrate) and get the best one
       const bestAudio = audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))[0]
 
+      console.log(`[v0] Got stream URL from Piped: ${bestAudio.url.substring(0, 50)}...`)
       return bestAudio.url
     } catch (error) {
       console.error("[v0] Piped stream URL error:", error)

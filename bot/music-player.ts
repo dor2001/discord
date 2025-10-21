@@ -104,15 +104,20 @@ export class MusicPlayer {
       this.currentPosition = 0
       this.startTime = Date.now()
 
-      const streamUrl = await pipedService.getStreamUrl(track.id)
+      let streamUrl = await pipedService.getStreamUrl(track.id)
 
       if (!streamUrl) {
-        console.error("[v0] Failed to get stream URL from Piped")
-        this.playNext()
-        return
+        console.log("[v0] Piped failed, falling back to yt-dlp")
+        streamUrl = await this.getStreamUrlWithYtDlp(track.url)
+
+        if (!streamUrl) {
+          console.error("[v0] Both Piped and yt-dlp failed to get stream URL")
+          this.playNext()
+          return
+        }
       }
 
-      console.log("[v0] Got stream URL from Piped")
+      console.log("[v0] Got stream URL, starting playback")
 
       const filters = this.playbackSpeed !== 1.0 ? ["-af", `atempo=${this.playbackSpeed}`] : []
 
@@ -284,11 +289,16 @@ export class MusicPlayer {
     try {
       console.log("[v0] Seeking to:", seconds, "seconds")
 
-      const streamUrl = await pipedService.getStreamUrl(track.id)
+      let streamUrl = await pipedService.getStreamUrl(track.id)
 
       if (!streamUrl) {
-        console.error("[v0] Failed to get stream URL from Piped for seeking")
-        return
+        console.log("[v0] Piped failed for seeking, falling back to yt-dlp")
+        streamUrl = await this.getStreamUrlWithYtDlp(track.url)
+
+        if (!streamUrl) {
+          console.error("[v0] Failed to get stream URL for seeking")
+          return
+        }
       }
 
       const ffmpeg = spawn("ffmpeg", [
@@ -395,5 +405,52 @@ export class MusicPlayer {
   public destroy() {
     this.audioPlayer.stop()
     this.subscription?.unsubscribe()
+  }
+
+  private async getStreamUrlWithYtDlp(videoUrl: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      console.log("[v0] Using yt-dlp to get stream URL")
+
+      const ytdlp = spawn("yt-dlp", [
+        "--format",
+        "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best",
+        "--get-url",
+        "--no-warnings",
+        "--no-check-certificate",
+        "--geo-bypass",
+        "--extractor-args",
+        "youtube:player_client=android,web,tv_embedded",
+        "--user-agent",
+        "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
+        videoUrl,
+      ])
+
+      let output = ""
+      let errorOutput = ""
+
+      ytdlp.stdout.on("data", (data) => {
+        output += data.toString()
+      })
+
+      ytdlp.stderr.on("data", (data) => {
+        errorOutput += data.toString()
+      })
+
+      ytdlp.on("close", (code) => {
+        if (code === 0 && output.trim()) {
+          const url = output.trim().split("\n")[0]
+          console.log("[v0] yt-dlp got stream URL successfully")
+          resolve(url)
+        } else {
+          console.error("[v0] yt-dlp failed:", errorOutput)
+          resolve(null)
+        }
+      })
+
+      ytdlp.on("error", (error) => {
+        console.error("[v0] yt-dlp spawn error:", error)
+        resolve(null)
+      })
+    })
   }
 }
