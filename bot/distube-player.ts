@@ -2,6 +2,7 @@ import { DisTube } from "distube"
 import { YouTubePlugin } from "@distube/youtube"
 import type { Client, VoiceBasedChannel } from "discord.js"
 import { botEventEmitter } from "../lib/event-emitter.js"
+import { config } from "../lib/config.js"
 
 export interface Track {
   id: string
@@ -27,8 +28,31 @@ export class DistubePlayer {
   constructor(client: Client, guildId: string) {
     this.guildId = guildId
 
+    const ytdlOptions: any = {
+      quality: "highestaudio",
+      filter: "audioonly",
+      highWaterMark: 1 << 25,
+    }
+
+    // Add cookies if provided via environment variable
+    if (config.youtubeCookies) {
+      ytdlOptions.requestOptions = {
+        headers: {
+          cookie: config.youtubeCookies,
+        },
+      }
+      console.log("[v0] Using YouTube cookies for authentication")
+    } else {
+      console.warn("[v0] No YouTube cookies provided - playback may fail due to bot detection")
+      console.warn("[v0] Set YOUTUBE_COOKIES environment variable to fix this")
+    }
+
     this.distube = new DisTube(client, {
-      plugins: [new YouTubePlugin()],
+      plugins: [
+        new YouTubePlugin({
+          cookies: config.youtubeCookies ? [{ name: "cookie", value: config.youtubeCookies }] : undefined,
+        }),
+      ],
     })
 
     this.setupEventHandlers()

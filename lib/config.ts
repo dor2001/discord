@@ -9,4 +9,5 @@ export const config = {
   port: Number.parseInt(process.env.PORT || "3000", 10),
   botPort: 3001,
   youtubeApiKey: process.env.YOUTUBE_API_KEY,
+  youtubeCookies: process.env.YOUTUBE_COOKIES || "",
 }
