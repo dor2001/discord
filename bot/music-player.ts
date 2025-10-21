@@ -10,6 +10,7 @@ import {
 } from "@discordjs/voice"
 import { spawn } from "child_process"
 import { botEventEmitter } from "../lib/event-emitter.js"
+import { pipedService } from "./piped-service.js"
 
 export interface Track {
   id: string
@@ -103,36 +104,53 @@ export class MusicPlayer {
       this.currentPosition = 0
       this.startTime = Date.now()
 
-      const filters = this.playbackSpeed !== 1.0 ? [`atempo=${this.playbackSpeed}`] : []
-      const filterArgs = filters.length > 0 ? ["--audio-filter", filters.join(",")] : []
+      const streamUrl = await pipedService.getStreamUrl(track.id)
 
-      const ytdlp = spawn("yt-dlp", [
-        track.url,
-        "-o",
-        "-",
+      if (!streamUrl) {
+        console.error("[v0] Failed to get stream URL from Piped")
+        this.playNext()
+        return
+      }
+
+      console.log("[v0] Got stream URL from Piped")
+
+      const filters = this.playbackSpeed !== 1.0 ? ["-af", `atempo=${this.playbackSpeed}`] : []
+
+      const ffmpeg = spawn("ffmpeg", [
+        "-reconnect",
+        "1",
+        "-reconnect_streamed",
+        "1",
+        "-reconnect_delay_max",
+        "5",
+        "-i",
+        streamUrl,
+        ...filters,
         "-f",
-        "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best",
-        "--no-check-certificates",
-        "--no-warnings",
-        "--prefer-free-formats",
-        "--geo-bypass",
-        "--age-limit",
-        "21",
-        "--add-header",
-        "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "--add-header",
-        "Accept-Language:en-US,en;q=0.9",
-        "--extractor-args",
-        "youtube:player_client=android,web,tv_embedded",
-        ...filterArgs,
+        "opus",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        "-b:a",
+        "128k",
+        "pipe:1",
       ])
 
-      ytdlp.stderr.on("data", (data) => {
-        console.error("[v0] yt-dlp stderr:", data.toString())
+      ffmpeg.stderr.on("data", (data) => {
+        const message = data.toString()
+        if (message.includes("error") || message.includes("Error")) {
+          console.error("[v0] ffmpeg error:", message)
+        }
       })
 
-      this.currentResource = createAudioResource(ytdlp.stdout, {
-        inputType: StreamType.Arbitrary,
+      ffmpeg.on("error", (error) => {
+        console.error("[v0] ffmpeg spawn error:", error)
+        this.playNext()
+      })
+
+      this.currentResource = createAudioResource(ffmpeg.stdout, {
+        inputType: StreamType.Opus,
         inlineVolume: true,
       })
 
@@ -266,34 +284,44 @@ export class MusicPlayer {
     try {
       console.log("[v0] Seeking to:", seconds, "seconds")
 
-      const ytdlp = spawn("yt-dlp", [
-        track.url,
-        "-o",
-        "-",
+      const streamUrl = await pipedService.getStreamUrl(track.id)
+
+      if (!streamUrl) {
+        console.error("[v0] Failed to get stream URL from Piped for seeking")
+        return
+      }
+
+      const ffmpeg = spawn("ffmpeg", [
+        "-reconnect",
+        "1",
+        "-reconnect_streamed",
+        "1",
+        "-reconnect_delay_max",
+        "5",
+        "-ss",
+        seconds.toString(),
+        "-i",
+        streamUrl,
         "-f",
-        "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best",
-        "--no-check-certificates",
-        "--no-warnings",
-        "--prefer-free-formats",
-        "--geo-bypass",
-        "--age-limit",
-        "21",
-        "--add-header",
-        "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "--add-header",
-        "Accept-Language:en-US,en;q=0.9",
-        "--extractor-args",
-        "youtube:player_client=android,web,tv_embedded",
-        "--download-sections",
-        `*${seconds}-inf`,
+        "opus",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        "-b:a",
+        "128k",
+        "pipe:1",
       ])
 
-      ytdlp.stderr.on("data", (data) => {
-        console.error("[v0] yt-dlp stderr:", data.toString())
+      ffmpeg.stderr.on("data", (data) => {
+        const message = data.toString()
+        if (message.includes("error") || message.includes("Error")) {
+          console.error("[v0] ffmpeg error:", message)
+        }
       })
 
-      this.currentResource = createAudioResource(ytdlp.stdout, {
-        inputType: StreamType.Arbitrary,
+      this.currentResource = createAudioResource(ffmpeg.stdout, {
+        inputType: StreamType.Opus,
         inlineVolume: true,
       })
 

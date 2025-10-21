@@ -65,6 +65,32 @@ export class PipedService {
       return null
     }
   }
+
+  public async getStreamUrl(videoId: string): Promise<string | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/streams/${videoId}`)
+
+      if (!response.ok) {
+        throw new Error(`Piped API error: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      // Get the best audio stream
+      const audioStreams = data.audioStreams || []
+      if (audioStreams.length === 0) {
+        throw new Error("No audio streams available")
+      }
+
+      // Sort by quality (bitrate) and get the best one
+      const bestAudio = audioStreams.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))[0]
+
+      return bestAudio.url
+    } catch (error) {
+      console.error("[v0] Piped stream URL error:", error)
+      return null
+    }
+  }
 }
 
 export const pipedService = new PipedService()
