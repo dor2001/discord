@@ -77,13 +77,13 @@ export function startHttpServer() {
               return
             }
 
-            if (!guildData.connection) {
-              console.error("[v0] Bot not in voice channel for guild:", guildId)
+            if (!guildData.voiceChannelId) {
+              console.error("[v0] No voice channel set for guild:", guildId)
               res.writeHead(400)
               res.end(
                 JSON.stringify({
-                  error: "Bot not in voice channel",
-                  message: "הבוט לא נמצא בערוץ קולי. השתמש ב-/join או בחר ערוץ קולי בדשבורד",
+                  error: "No voice channel set",
+                  message: "השתמש ב-/join או בחר ערוץ קולי בדשבורד",
                 }),
               )
               return
