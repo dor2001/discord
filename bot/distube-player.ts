@@ -28,7 +28,6 @@ export class DistubePlayer {
 
     this.distube = new DisTube(client, {
       emitNewSongOnly: false,
-      leaveOnEmpty: false,
       leaveOnFinish: false,
       leaveOnStop: false,
       savePreviousSongs: true,
@@ -44,7 +43,7 @@ export class DistubePlayer {
   }
 
   private setupEventHandlers() {
-    this.distube.on("playSong", (queue, song) => {
+    ;(this.distube as any).on("playSong", (queue: any, song: any) => {
       console.log("[v0] DisTube playing:", song.name)
       botEventEmitter.emitPlayerUpdate({
         guildId: this.guildId,
@@ -52,8 +51,7 @@ export class DistubePlayer {
         data: { track: this.convertSongToTrack(song) },
       })
     })
-
-    this.distube.on("addSong", (queue, song) => {
+    ;(this.distube as any).on("addSong", (queue: any, song: any) => {
       console.log("[v0] DisTube added song:", song.name)
       botEventEmitter.emitPlayerUpdate({
         guildId: this.guildId,
@@ -61,8 +59,7 @@ export class DistubePlayer {
         data: { queue: this.getQueue() },
       })
     })
-
-    this.distube.on("finish", (queue) => {
+    ;(this.distube as any).on("finish", (queue: any) => {
       console.log("[v0] DisTube queue finished")
       botEventEmitter.emitPlayerUpdate({
         guildId: this.guildId,
@@ -70,8 +67,7 @@ export class DistubePlayer {
         data: { track: null },
       })
     })
-
-    this.distube.on("error", (channel, error) => {
+    ;(this.distube as any).on("error", (error: Error, queue: any) => {
       console.error("[v0] DisTube error:", error)
     })
   }
@@ -160,7 +156,7 @@ export class DistubePlayer {
     const queue = this.distube.getQueue(this.guildId)
     if (queue) {
       this.playbackSpeed = Math.max(0.5, Math.min(2.0, speed))
-      queue.setFilter(`atempo=${this.playbackSpeed}`)
+      ;(queue as any).filters.add(`atempo=${this.playbackSpeed}`)
       this.emitStateUpdate()
     }
   }
