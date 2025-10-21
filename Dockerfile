@@ -63,7 +63,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nextjs:nodejs /app/healthcheck.js ./healthcheck.js
 COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
-COPY --from=builder --chown=nextjs:nodejs /app/youtube-cookies.txt ./youtube-cookies.txt 2>/dev/null || true
+COPY --from=builder --chown=nextjs:nodejs /app/youtube-cookies.txt ./youtube-cookies.txt
 
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
