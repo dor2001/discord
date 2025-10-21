@@ -28,7 +28,6 @@ export class DistubePlayer {
 
     this.distube = new DisTube(client, {
       emitNewSongOnly: false,
-      leaveOnStop: false,
       savePreviousSongs: true,
       searchSongs: 0,
       ytdlOptions: {
