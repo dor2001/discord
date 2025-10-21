@@ -26,15 +26,7 @@ export class DistubePlayer {
   constructor(client: Client, guildId: string) {
     this.guildId = guildId
 
-    this.distube = new DisTube(client, {
-      emitNewSongOnly: false,
-      savePreviousSongs: true,
-      ytdlOptions: {
-        quality: "highestaudio",
-        highWaterMark: 1 << 25,
-        filter: "audioonly",
-      },
-    })
+    this.distube = new DisTube(client, {})
 
     this.setupEventHandlers()
   }
