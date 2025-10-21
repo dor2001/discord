@@ -31,5 +31,6 @@ next-env.d.ts
 # Bot data
 /data
 cookies.txt
+youtube-cookies.txt
 
 /dist

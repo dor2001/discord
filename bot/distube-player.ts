@@ -27,46 +27,47 @@ export class DistubePlayer {
   constructor(client: Client, guildId: string) {
     this.guildId = guildId
 
-    const cookiesPath = "./youtube-cookies.txt"
-    let cookies: string | undefined
-
-    try {
-      const fs = require("fs")
-      if (fs.existsSync(cookiesPath)) {
-        cookies = fs.readFileSync(cookiesPath, "utf-8")
-        console.log("[v0] Loaded YouTube cookies from file")
-      } else {
-        console.warn("[v0] YouTube cookies file not found at:", cookiesPath)
-        console.warn("[v0] Playback may fail due to bot detection")
-      }
-    } catch (error) {
-      console.error("[v0] Error reading cookies file:", error)
-    }
+    const YOUTUBE_COOKIES = `.youtube.com	TRUE	/	TRUE	1764100541	LOGIN_INFO	AFmmF2swRgIhAN0wjmMu1xkNsSkiaXvD2mqsxxYhVp3R-eTg2ehXdc-MAiEA38iKbHZSCvN3ueWVxP0k5aTDqvIf2IrfIpzqM2X7UsI:QUQ3MjNmek9tQ21kTkM4TlVuamtYYmlicmx4eEtrSHBGd3dPVzl6WUZDazJTRHVrb3l5RGZuU0J5V2pxUV9BcGViQUI0U0hnakduSzlzRGlwRkdwZkRuMmpCdGNSc08tUnBKaXh2bUhqNGh0ODVmdVVNRDFBS1F5c3A5MGUyeG1nOTRxZFNZa0F6VXhJdnNiamZnN1plZmZOdl9wNDQ1ZHF3
+.youtube.com	TRUE	/	TRUE	1776593677	PREF	f6=40000000&tz=Asia.Jerusalem&f5=30000&f7=100
+.youtube.com	TRUE	/	FALSE	1774642181	HSID	An-vh9cAzBMN785pF
+.youtube.com	TRUE	/	TRUE	1774642181	SSID	AiWiNF-yo4EOdNsUF
+.youtube.com	TRUE	/	FALSE	1774642181	APISID	t9frdTFes2rJFUU8/AgLhLIXkLgo4BqcP-
+.youtube.com	TRUE	/	TRUE	1774642181	SAPISID	CAe-1cCHK0OFgF7E/Aa5K1rHnpKsDjtFzs
+.youtube.com	TRUE	/	TRUE	1774642181	__Secure-1PAPISID	CAe-1cCHK0OFgF7E/Aa5K1rHnpKsDjtFzs
+.youtube.com	TRUE	/	TRUE	1774642181	__Secure-3PAPISID	CAe-1cCHK0OFgF7E/Aa5K1rHnpKsDjtFzs
+.youtube.com	TRUE	/	FALSE	1774642181	SID	g.a0001wjfBqNsxu737G5PxctUsSaL-2CpYMlXwWodyV5V8HBNqKCCjmCNfZ7HyoNqT8NEPXzzogACgYKAXoSARISFQHGX2MiIwVZ_NJMkiQoZ-TNrPCDKRoVAUF8yKqFN8xtHggLi4XTpn3ThNBP0076
+.youtube.com	TRUE	/	TRUE	1774642181	__Secure-1PSID	g.a0001wjfBqNsxu737G5PxctUsSaL-2CpYMlXwWodyV5V8HBNqKCCLFKD7upfmwiXU0k4LV7NwwACgYKAXASARISFQHGX2Mi93WgdpR9xXNI6TjVc89xcRoVAUF8yKpVhlZ8BjNlHDorrlwZzAdV0076
+.youtube.com	TRUE	/	TRUE	1774642181	__Secure-3PSID	g.a0001wjfBqNsxu737G5PxctUsSaL-2CpYMlXwWodyV5V8HBNqKCCLFKD7upfmwiXU0k4LV7NwwACgYKAXASARISFQHGX2Mi93WgdpR9xXNI6TjVc89xcRoVAUF8yKpVhlZ8BjNlHDorrlwZzAdV0076
+.youtube.com	TRUE	/	FALSE	1774642181	SIDCC	AKEyXzU708CKtVlOShaMhfCXraUAItuvafHOhzEQWX9uA-ygbJ1FErh-aN8Py4FlBPxtSmDrggdl
+.youtube.com	TRUE	/	TRUE	1774642181	__Secure-1PSIDCC	AKEyXzV_iNAOvXcZfcx8bp17ntmA225LrDqtzXSjhmP3V-EboXWX88l9cEoc7HY-dF0EGF9O_cs
+.youtube.com	TRUE	/	TRUE	1774642181	__Secure-3PSIDCC	AKEyXzV_iNAOvXcZfcx8bp17ntmA225LrDqtzXSjhmP3V-EboXWX88l9cEoc7HY-dF0EGF9O_cs
+.youtube.com	TRUE	/	TRUE	1776593675	VISITOR_INFO1_LIVE	IDM1zNPx63M
+.youtube.com	TRUE	/	TRUE	1776593675	VISITOR_PRIVACY_METADATA	CgJJTBIEGgAgLQ%3D%3D
+.youtube.com	TRUE	/	TRUE	0	YSC	V42JXt0mBA0
+.youtube.com	TRUE	/	TRUE	1776507396	__Secure-ROLLOUT_TOKEN	CJuJ9uWYj4yTZBDNgO28rq-KAxiPnomHxrKQAw%3D%3D`
 
     this.distube = new DisTube(client, {
       plugins: [
         new YouTubePlugin({
-          cookies: cookies
-            ? cookies
-                .split("\n")
-                .filter((line) => line && !line.startsWith("#"))
-                .map((line) => {
-                  const parts = line.split("\t")
-                  return {
-                    domain: parts[0],
-                    flag: parts[1] === "TRUE",
-                    path: parts[2],
-                    secure: parts[3] === "TRUE",
-                    expiration: Number.parseInt(parts[4]),
-                    name: parts[5],
-                    value: parts[6],
-                  }
-                })
-            : undefined,
+          cookies: YOUTUBE_COOKIES.split("\n")
+            .filter((line) => line && !line.startsWith("#"))
+            .map((line) => {
+              const parts = line.split("\t")
+              return {
+                domain: parts[0],
+                flag: parts[1] === "TRUE",
+                path: parts[2],
+                secure: parts[3] === "TRUE",
+                expiration: Number.parseInt(parts[4]),
+                name: parts[5],
+                value: parts[6],
+              }
+            }),
         }),
       ],
     })
 
+    console.log("[v0] DisTube initialized with hardcoded YouTube cookies")
     this.setupEventHandlers()
   }
 
